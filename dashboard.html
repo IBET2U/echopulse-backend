@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EchoPulse — Shadow Churn Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080c12;
+      --surface: #0d1520;
+      --border: #1a2535;
+      --green: #00ff88;
+      --yellow: #ffb800;
+      --red: #ff3b5c;
+      --text: #e2e8f0;
+      --muted: #4a5568;
+      --accent: #00ff88;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .logo span {
+      color: var(--green);
+    }
+
+    .last-updated {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .stat-card.danger::before { background: var(--red); }
+    .stat-card.warning::before { background: var(--yellow); }
+
+    .stat-label {
+      font-size: 0.7rem;
+      font-family: 'Space Mono', monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-card.danger .stat-value { color: var(--red); }
+    .stat-card.warning .stat-value { color: var(--yellow); }
+    .stat-card .stat-value { color: var(--green); }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-family: 'Space Mono', monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+
+    .customer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .customer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 1.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .customer-card:hover {
+      border-color: var(--green);
+    }
+
+    .customer-card.red { border-left: 3px solid var(--red); }
+    .customer-card.yellow { border-left: 3px solid var(--yellow); }
+    .customer-card.green { border-left: 3px solid var(--green); }
+
+    .risk-badge {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .risk-badge.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .risk-badge.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .risk-badge.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+    .customer-info h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .customer-id {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+
+    .signals {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .signal-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      padding: 0.2rem 0.5rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+    }
+
+    .score-display {
+      text-align: right;
+    }
+
+    .score-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-family: 'Space Mono', monospace;
+      line-height: 1;
+    }
+
+    .score-number.red { color: var(--red); }
+    .score-number.yellow { color: var(--yellow); }
+    .score-number.green { color: var(--green); }
+
+    .score-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+    }
+
+    .alert-banner {
+      background: rgba(255, 59, 92, 0.1);
+      border: 1px solid var(--red);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    .alert-banner.visible {
+      display: flex;
+    }
+
+    .alert-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+      flex-shrink: 0;
+    }
+
+    .refresh-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .refresh-progress {
+      height: 100%;
+      background: var(--green);
+      animation: refresh 30s linear infinite;
+    }
+
+    @keyframes refresh {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <h1>Echo<span>Pulse</span></h1>
+    </div>
+    <div class="last-updated" id="lastUpdated">Connecting...</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Customers Monitored</div>
+      <div class="stat-value" id="totalCustomers">—</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-label">At Risk</div>
+      <div class="stat-value" id="atRisk">—</div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-label">Shadow Churners</div>
+      <div class="stat-value" id="shadowChurners">—</div>
+    </div>
+  </div>
+
+  <div class="alert-banner" id="alertBanner">
+    <div class="alert-dot"></div>
+    <span id="alertText">Customers need immediate attention</span>
+  </div>
+
+  <div class="section-title">Customer Risk Monitor</div>
+
+  <div class="customer-list" id="customerList">
+    <div class="empty-state">Waiting for Stripe events...</div>
+  </div>
+
+  <div class="refresh-bar">
+    <div class="refresh-progress"></div>
+  </div>
+
+  <script>
+    async function fetchDashboard() {
+      try {
+        const res = await fetch('http://localhost:3000/dashboard');
+        const data = await res.json();
+
+        document.getElementById('totalCustomers').textContent = 
+          data.totalCustomers || 0;
+        
+        const atRisk = data.customers ? 
+          data.customers.filter(c => c.riskLevel && 
+          c.riskLevel.label !== 'Green').length : 0;
+        
+        const redCustomers = data.customers ?
+          data.customers.filter(c => c.riskLevel && 
+          c.riskLevel.label === 'Red').length : 0;
+
+        document.getElementById('atRisk').textContent = atRisk;
+        document.getElementById('shadowChurners').textContent = redCustomers;
+
+        const banner = document.getElementById('alertBanner');
+        if (redCustomers > 0) {
+          banner.classList.add('visible');
+          document.getElementById('alertText').textContent = 
+            `${redCustomers} customer${redCustomers > 1 ? 's' : ''} need immediate attention`;
+        } else {
+          banner.classList.remove('visible');
+        }
+
+        const list = document.getElementById('customerList');
+        
+        if (!data.customers || data.customers.length === 0) {
+          list.innerHTML = '<div class="empty-state">No customers detected yet. Trigger a Stripe event to begin monitoring.</div>';
+          return;
+        }
+
+        list.innerHTML = data.customers.map((c, i) => {
+          const level = c.riskLevel ? c.riskLevel.label.toLowerCase() : 'green';
+          const signals = c.signals ? c.signals.slice(-3).map(s => 
+            `<span class="signal-tag">${s.event}</span>`
+          ).join('') : '';
+
+          return `
+            <div class="customer-card ${level} fade-in" style="animation-delay: ${i * 0.05}s">
+              <div class="risk-badge ${level}"></div>
+              <div class="customer-info">
+                <h3>${c.customerEmail !== 'Unknown' ? c.customerEmail : 'Customer'}</h3>
+                <div class="customer-id">${c.customerId}</div>
+                <div class="signals" style="margin-top: 0.5rem">${signals}</div>
+              </div>
+              <div class="score-display">
+                <div class="score-number ${level}">${c.score}</div>
+                <div class="score-label">score</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('lastUpdated').textContent = 
+          'Updated ' + new Date().toLocaleTimeString();
+
+      } catch (err) {
+        document.getElementById('lastUpdated').textContent = 'Connection error';
+      }
+    }
+
+    fetchDashboard();
+    setInterval(fetchDashboard, 30000);
+  </script>
+</body>
+</html>
