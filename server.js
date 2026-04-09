@@ -23,7 +23,7 @@ app.get('/dashboard', (req, res) => {
   });
 });
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -52,12 +52,12 @@ app.post('/webhook', (req, res) => {
     console.log(`Event: ${event.type}`);
     console.log(`Score: ${result.score}`);
     console.log(`Risk Level: ${result.riskLevel.label}`);
-    
-   if (result.shouldAlert) {
-  console.log(`\n🚨 ALERT NEEDED - ${result.riskLevel.label} STAGE`);
-  console.log(`This customer needs attention NOW`);
-  sendChurnAlert(result, process.env.FOUNDER_EMAIL);
-}
+
+    if (result.shouldAlert) {
+      console.log(`\n🚨 ALERT NEEDED - ${result.riskLevel.label} STAGE`);
+      console.log(`This customer needs attention NOW`);
+      await sendChurnAlert(result, process.env.FOUNDER_EMAIL);
+    }
   }
 
   res.json({ received: true });
