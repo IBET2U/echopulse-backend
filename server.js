@@ -4,7 +4,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const { generateChurnAssessment } = require('./claude');
 const { sendChurnAlert } = require('./mailer');
-
+const cors = require('cors');
 const app = express();
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,7 +13,7 @@ const supabase = createClient(
 
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
-
+app.use(cors());
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
 });app.post('/waitlist', async (req, res) => {
