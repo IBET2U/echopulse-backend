@@ -16,8 +16,52 @@ app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
-});
+});app.post('/waitlist', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
 
+  try {
+    const { Resend } = require('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
+    await resend.emails.send({
+      from: 'EchoPulse <onboarding@resend.dev>',
+      to: process.env.FOUNDER_EMAIL,
+      subject: '🎯 New EchoPulse Waitlist Signup',
+      html: `<p>New waitlist signup: <strong>${email}</strong></p><p>Time: ${new Date().toLocaleString()}</p>`
+    });
+
+    res.json({ success: true });
+  } catch(err) {
+    console.log('Waitlist error:', err.message);
+    res.json({ success: true });
+  }
+});
+app.post('/assessment', async (req, res) => {
+  const { customer_id } = req.body;
+  
+  try {
+    let { data: customer } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('stripe_customer_id', customer_id)
+      .single();
+
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    const assessment = await generateChurnAssessment({
+      stripe_customer_id: customer_id,
+      risk_score: customer.risk_score,
+      risk_level: customer.risk_level,
+      signals: customer.signals,
+      days_inactive: 0
+    });
+
+    res.json(assessment);
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
