@@ -1,26 +1,21 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { processEvent, getAllCustomers } = require('./scorer');
+const { createClient } = require('@supabase/supabase-js');
+const { generateChurnAssessment } = require('./claude');
 const { sendChurnAlert } = require('./mailer');
+
 const app = express();
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 app.use('/webhook', express.raw({ type: 'application/json' }));
-app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
-});
-
-app.get('/dashboard', (req, res) => {
-  const customers = getAllCustomers();
-  res.json({
-    totalCustomers: customers.length,
-    atRisk: customers.filter(c => c.riskLevel && c.riskLevel.label !== 'Green').length,
-    customers: customers.sort((a, b) => b.score - a.score)
-  });
 });
 
 app.post('/webhook', async (req, res) => {
@@ -38,32 +33,104 @@ app.post('/webhook', async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  const customerId = event.data.object.customer || 
-                     event.data.object.id;
-  const customerEmail = event.data.object.customer_email || 
-                        event.data.object.email || 
-                        null;
+  // Shadow churn signals we care about
+  const shadowChurnEvents = [
+    'customer.subscription.deleted',
+    'customer.subscription.updated',
+    'invoice.payment_failed',
+    'customer.updated',
+    'payment_method.detached'
+  ];
 
-  const result = processEvent(event.type, customerId, customerEmail);
+  if (shadowChurnEvents.includes(event.type)) {
+    console.log(`Shadow churn signal detected: ${event.type}`);
+    
+    const customerId = event.data.object.customer || 
+                       event.data.object.id;
 
-  if (result) {
-    console.log(`\n${result.riskLevel.emoji} SHADOW CHURN SCORE UPDATE`);
-    console.log(`Customer: ${result.customerEmail || result.customerId}`);
-    console.log(`Event: ${event.type}`);
-    console.log(`Score: ${result.score}`);
-    console.log(`Risk Level: ${result.riskLevel.label}`);
-
-    if (result.shouldAlert) {
-      console.log(`\n🚨 ALERT NEEDED - ${result.riskLevel.label} STAGE`);
-      console.log(`This customer needs attention NOW`);
-      await sendChurnAlert(result, process.env.FOUNDER_EMAIL);
+    if (customerId) {
+      await processChurnSignal(customerId, event.type);
     }
   }
 
   res.json({ received: true });
 });
 
+async function processChurnSignal(customerId, eventType) {
+  try {
+    // Get or create customer in Supabase
+    let { data: customer } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('stripe_customer_id', customerId)
+      .single();
+
+    if (!customer) {
+      const { data: newCustomer } = await supabase
+        .from('customers')
+        .insert({
+          stripe_customer_id: customerId,
+          signals: [eventType],
+          risk_score: 25,
+          risk_level: 'yellow'
+        })
+        .select()
+        .single();
+      customer = newCustomer;
+    } else {
+      // Add new signal and recalculate score
+      const signals = [...(customer.signals || []), eventType];
+      const riskScore = Math.min(signals.length * 25, 100);
+      const riskLevel = riskScore >= 75 ? 'red' : 
+                        riskScore >= 50 ? 'yellow' : 'green';
+
+      const { data: updated } = await supabase
+        .from('customers')
+        .update({
+          signals,
+          risk_score: riskScore,
+          risk_level: riskLevel,
+          last_signal_at: new Date()
+        })
+        .eq('stripe_customer_id', customerId)
+        .select()
+        .single();
+      customer = updated;
+    }
+
+    console.log(`Customer ${customerId} risk level: ${customer.risk_level}`);
+
+    // Only call Claude for yellow or red customers
+    if (customer.risk_level === 'yellow' || 
+        customer.risk_level === 'red') {
+      console.log('Generating AI assessment...');
+      
+      const assessment = await generateChurnAssessment({
+        stripe_customer_id: customerId,
+        risk_score: customer.risk_score,
+        risk_level: customer.risk_level,
+        signals: customer.signals,
+        days_inactive: 0
+      });
+
+      console.log('\n=== ECHOPULSE SHADOW CHURN ALERT ===');
+      console.log(`Customer: ${customerId}`);
+      console.log(`Risk Level: ${customer.risk_level.toUpperCase()}`);
+      console.log(`Stage: ${assessment.stage}`);
+      console.log(`Assessment: ${assessment.assessment}`);
+      console.log(`\nSuggested Email Subject: ${assessment.email_subject}`);
+      console.log(`\nSuggested Email:\n${assessment.email_body}`);
+      console.log('=====================================\n');
+    await sendChurnAlert(customer, assessment);
+    }
+
+
+  } catch (err) {
+    console.log('Error processing churn signal:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`EchoPulse scoring engine running on port ${PORT}`);
+  console.log(`EchoPulse server running on port ${PORT}`);
 });
