@@ -299,9 +299,15 @@
       <div class="logo-dot"></div>
       <h1>Echo<span>Pulse</span></h1>
     </div>
-    <div class="last-updated" id="lastUpdated">Connecting...</div>
+    <div style="display:flex;align-items:center;gap:16px">
+  <button onclick="toggleSettings()" style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;font-family:'Space Mono',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;letter-spacing:1px">
+    ⚙ CONNECT STRIPE
+  </button>
+  <div class="last-updated" id="lastUpdated">Connecting...</div>
+</div>
   </div>
 
+  <div id="main-content">
   <div class="stats">
     <div class="stat-card">
       <div class="stat-label">Customers Monitored</div>
@@ -327,79 +333,204 @@
   <div class="customer-list" id="customerList">
     <div class="empty-state">Waiting for Stripe events...</div>
   </div>
+   </div>
+<!-- Settings Panel -->
+<div id="settings-panel" style="display:none;max-width:560px;margin:0 auto;padding:40px 0">
+  <p style="font-family:'Space Mono',monospace;font-size:10px;color:#4a5568;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">// Connect Your Stripe</p>
+  <h2 style="font-family:'Syne',sans-serif;font-size:24px;color:#e2e8f0;margin-bottom:8px;font-weight:800">Connect Your Stripe Account</h2>
+  <p style="color:#4a5568;font-size:14px;margin-bottom:24px">Read-only access only. EchoPulse sees your customers but cannot touch billing or make changes.</p>
 
+  <div style="margin-bottom:16px">
+    <label style="font-size:11px;color:#4a5568;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Stripe Restricted API Key</label>
+    <input id="stripe-key-input" type="password" placeholder="rk_live_..."
+      style="width:100%;background:#0d1520;border:1px solid #1a2535;border-radius:8px;padding:12px 16px;color:#e2e8f0;font-family:'Space Mono',monospace;font-size:13px;outline:none">
+  </div>
+
+  <div style="margin-bottom:16px">
+    <label style="font-size:11px;color:#4a5568;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Your Name</label>
+    <input id="founder-name-input" type="text" placeholder="e.g. Obi"
+      style="width:100%;background:#0d1520;border:1px solid #1a2535;border-radius:8px;padding:12px 16px;color:#e2e8f0;font-family:'Syne',sans-serif;font-size:14px;outline:none">
+  </div>
+
+  <div style="margin-bottom:16px">
+    <label style="font-size:11px;color:#4a5568;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Your Email</label>
+    <input id="founder-email-input" type="email" placeholder="you@yourcompany.com"
+      style="width:100%;background:#0d1520;border:1px solid #1a2535;border-radius:8px;padding:12px 16px;color:#e2e8f0;font-family:'Syne',sans-serif;font-size:14px;outline:none">
+  </div>
+
+  <button onclick="saveStripeKey()"
+    style="width:100%;background:#00ff88;color:#080c12;border:none;border-radius:8px;padding:14px;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;letter-spacing:1px">
+    CONNECT STRIPE ACCOUNT →
+  </button>
+
+  <div id="connect-status" style="display:none;text-align:center;font-size:13px;padding:12px;border-radius:8px;margin-bottom:16px;font-family:'Space Mono',monospace"></div>
+
+  <div style="padding:16px;background:#0d1520;border-radius:8px;border:1px solid #1a2535;margin-bottom:16px">
+    <p style="font-size:11px;color:#4a5568;line-height:1.8;font-family:'Space Mono',monospace">
+      <span style="color:#e2e8f0">HOW TO CREATE YOUR KEY:</span><br>
+      1. Stripe Dashboard → Developers → API Keys<br>
+      2. Click "Create restricted key"<br>
+      3. Read-only: Customers, Subscriptions, Payment Methods<br>
+      4. Copy and paste above
+    </p>
+  </div>
+
+  <button onclick="toggleSettings()"
+    style="background:transparent;border:1px solid #1a2535;color:#4a5568;font-family:'Space Mono',monospace;font-size:11px;padding:8px 20px;border-radius:6px;cursor:pointer;letter-spacing:1px">
+    ← BACK TO DASHBOARD
+  </button>
+</div>
   <div class="refresh-bar">
     <div class="refresh-progress"></div>
   </div>
 
-  <script>
-    async function fetchDashboard() {
-      try {
-        const res = await fetch('http://localhost:3000/dashboard');
-        const data = await res.json();
+   <script>
+  const BACKEND = 'https://echopulse-backend.onrender.com';
 
-        document.getElementById('totalCustomers').textContent = 
-          data.totalCustomers || 0;
-        
-        const atRisk = data.customers ? 
-          data.customers.filter(c => c.riskLevel && 
-          c.riskLevel.label !== 'Green').length : 0;
-        
-        const redCustomers = data.customers ?
-          data.customers.filter(c => c.riskLevel && 
-          c.riskLevel.label === 'Red').length : 0;
+  function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    const content = document.getElementById('main-content');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      content.style.display = 'none';
+    } else {
+      panel.style.display = 'none';
+      content.style.display = 'block';
+    }
+  }
 
-        document.getElementById('atRisk').textContent = atRisk;
-        document.getElementById('shadowChurners').textContent = redCustomers;
+  async function saveStripeKey() {
+    const key = document.getElementById('stripe-key-input').value.trim();
+    const name = document.getElementById('founder-name-input').value.trim();
+    const email = document.getElementById('founder-email-input').value.trim();
+    const status = document.getElementById('connect-status');
 
-        const banner = document.getElementById('alertBanner');
-        if (redCustomers > 0) {
-          banner.classList.add('visible');
-          document.getElementById('alertText').textContent = 
-            `${redCustomers} customer${redCustomers > 1 ? 's' : ''} need immediate attention`;
-        } else {
-          banner.classList.remove('visible');
-        }
-
-        const list = document.getElementById('customerList');
-        
-        if (!data.customers || data.customers.length === 0) {
-          list.innerHTML = '<div class="empty-state">No customers detected yet. Trigger a Stripe event to begin monitoring.</div>';
-          return;
-        }
-
-        list.innerHTML = data.customers.map((c, i) => {
-          const level = c.riskLevel ? c.riskLevel.label.toLowerCase() : 'green';
-          const signals = c.signals ? c.signals.slice(-3).map(s => 
-            `<span class="signal-tag">${s.event}</span>`
-          ).join('') : '';
-
-          return `
-            <div class="customer-card ${level} fade-in" style="animation-delay: ${i * 0.05}s">
-              <div class="risk-badge ${level}"></div>
-              <div class="customer-info">
-                <h3>${c.customerEmail !== 'Unknown' ? c.customerEmail : 'Customer'}</h3>
-                <div class="customer-id">${c.customerId}</div>
-                <div class="signals" style="margin-top: 0.5rem">${signals}</div>
-              </div>
-              <div class="score-display">
-                <div class="score-number ${level}">${c.score}</div>
-                <div class="score-label">score</div>
-              </div>
-            </div>
-          `;
-        }).join('');
-
-        document.getElementById('lastUpdated').textContent = 
-          'Updated ' + new Date().toLocaleTimeString();
-
-      } catch (err) {
-        document.getElementById('lastUpdated').textContent = 'Connection error';
-      }
+    if (!key || !key.startsWith('rk_')) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(255,59,92,0.1)';
+      status.style.color = '#ff3b5c';
+      status.style.border = '1px solid rgba(255,59,92,0.3)';
+      status.textContent = 'Invalid key. Must start with rk_';
+      return;
     }
 
-    fetchDashboard();
-    setInterval(fetchDashboard, 30000);
-  </script>
-</body>
-</html>
+    if (!name || !email) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(255,184,0,0.1)';
+      status.style.color = '#ffb800';
+      status.style.border = '1px solid rgba(255,184,0,0.3)';
+      status.textContent = 'Please fill in your name and email.';
+      return;
+    }
+
+    const btn = document.querySelector('#settings-panel button');
+    btn.textContent = 'CONNECTING...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`${BACKEND}/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripe_key: key, founder_name: name, founder_email: email })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        status.style.display = 'block';
+        status.style.background = 'rgba(0,255,136,0.1)';
+        status.style.color = '#00ff88';
+        status.style.border = '1px solid rgba(0,255,136,0.3)';
+        status.textContent = '✓ Connected. Monitoring ' + data.customers_imported + ' customers.';
+        localStorage.setItem('founder_name', name);
+        localStorage.setItem('account_id', data.account_id);
+        btn.textContent = '✓ CONNECTED';
+
+        setTimeout(() => {
+          toggleSettings();
+          fetchDashboard();
+        }, 2000);
+      } else {
+        throw new Error(data.error || 'Connection failed');
+      }
+    } catch(err) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(255,59,92,0.1)';
+      status.style.color = '#ff3b5c';
+      status.style.border = '1px solid rgba(255,59,92,0.3)';
+      status.textContent = 'Error: ' + err.message;
+      btn.textContent = 'CONNECT STRIPE ACCOUNT →';
+      btn.disabled = false;
+    }
+  }
+
+  async function fetchDashboard() {
+    try {
+      const accountId = localStorage.getItem('account_id');
+      const url = accountId 
+        ? `${BACKEND}/dashboard?account_id=${accountId}`
+        : `${BACKEND}/dashboard`;
+        
+      const res = await fetch(url);
+      const data = await res.json();
+
+      document.getElementById('totalCustomers').textContent = data.totalCustomers || 0;
+      
+      const atRisk = data.customers ? 
+        data.customers.filter(c => c.riskLevel && c.riskLevel.label !== 'Green').length : 0;
+      
+      const redCustomers = data.customers ?
+        data.customers.filter(c => c.riskLevel && c.riskLevel.label === 'Red').length : 0;
+
+      document.getElementById('atRisk').textContent = atRisk;
+      document.getElementById('shadowChurners').textContent = redCustomers;
+
+      const banner = document.getElementById('alertBanner');
+      if (redCustomers > 0) {
+        banner.classList.add('visible');
+        document.getElementById('alertText').textContent = 
+          `${redCustomers} customer${redCustomers > 1 ? 's' : ''} need immediate attention`;
+      } else {
+        banner.classList.remove('visible');
+      }
+
+      const list = document.getElementById('customerList');
+      
+      if (!data.customers || data.customers.length === 0) {
+        list.innerHTML = '<div class="empty-state">No customers detected yet. Connect your Stripe account to begin monitoring.</div>';
+        return;
+      }
+
+      list.innerHTML = data.customers.map((c, i) => {
+        const level = c.riskLevel ? c.riskLevel.label.toLowerCase() : 'green';
+        const signals = c.signals ? c.signals.slice(-3).map(s => 
+          `<span class="signal-tag">${s.event}</span>`
+        ).join('') : '';
+
+        return `
+          <div class="customer-card ${level} fade-in" style="animation-delay: ${i * 0.05}s">
+            <div class="risk-badge ${level}"></div>
+            <div class="customer-info">
+              <h3>${c.customerEmail !== 'Unknown' ? c.customerEmail : 'Customer'}</h3>
+              <div class="customer-id">${c.customerId}</div>
+              <div class="signals" style="margin-top: 0.5rem">${signals}</div>
+            </div>
+            <div class="score-display">
+              <div class="score-number ${level}">${c.score}</div>
+              <div class="score-label">score</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('lastUpdated').textContent = 
+        'Updated ' + new Date().toLocaleTimeString();
+
+    } catch (err) {
+      document.getElementById('lastUpdated').textContent = 'Connection error';
+    }
+  }
+
+  fetchDashboard();
+  setInterval(fetchDashboard, 30000);
+</script>
