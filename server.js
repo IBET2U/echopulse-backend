@@ -254,7 +254,7 @@ app.post('/connect', async (req, res) => {
     const { data: customers, error } = await supabase
       .from('customers')
       .select('*')
-      .order('score', { ascending: false });
+      .order('risk_score', { ascending: false });
 
     if (error) throw error;
 
