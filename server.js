@@ -173,7 +173,77 @@ async function processChurnSignal(customerId, eventType) {
     console.log('Error processing churn signal:', err.message);
   }
 }
+// Connect endpoint - founders paste their Stripe restricted key
+app.post('/connect', async (req, res) => {
+  const { stripe_key, founder_name, founder_email } = req.body;
 
+  if (!stripe_key || !stripe_key.startsWith('rk_')) {
+    return res.status(400).json({ 
+      error: 'Invalid key. Must be a restricted key starting with rk_' 
+    });
+  }
+
+  try {
+    // Validate key by calling Stripe
+    const Stripe = require('stripe');
+    const stripeClient = Stripe(stripe_key);
+    
+    // Pull their customers immediately
+    const customers = await stripeClient.customers.list({ limit: 100 });
+    const account_id = `acct_${Date.now()}`;
+
+    // Register webhook on their account
+    const webhook = await stripeClient.webhookEndpoints.create({
+      url: 'https://echopulse-backend.onrender.com/webhook',
+      enabled_events: [
+        'customer.subscription.deleted',
+        'customer.subscription.updated', 
+        'customer.updated',
+        'invoice.payment_failed',
+        'payment_method.detached',
+        'customer.discount.created'
+      ],
+    });
+
+    // Store account in Supabase
+    await supabase.from('accounts').upsert({
+      account_id: account_id,
+      stripe_key: stripe_key,
+      webhook_secret: webhook.secret,
+      founder_name: founder_name || 'Founder',
+      founder_email: founder_email,
+      connected_at: new Date().toISOString()
+    });
+
+    // Immediately score their existing customers
+    for (const customer of customers.data) {
+      await supabase.from('customers').upsert({
+        stripe_customer_id: customer.id,
+        account_id: account_id,
+        email: customer.email || 'Unknown',
+        risk_level: 'green',
+        risk_score: 0,
+        signals: [],
+        created_at: new Date().toISOString()
+      });
+    }
+
+    console.log(`New account connected: ${founder_email} with ${customers.data.length} customers`);
+
+    res.json({ 
+      success: true,
+      account_id: account_id,
+      customers_imported: customers.data.length,
+      message: `Connected. Monitoring ${customers.data.length} customers.`
+    });
+
+  } catch(err) {
+    console.error('Connect error:', err.message);
+    res.status(400).json({ 
+      error: err.message || 'Connection failed. Check your API key.'
+    });
+  }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`EchoPulse server running on port ${PORT}`);
