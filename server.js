@@ -243,6 +243,39 @@ app.post('/connect', async (req, res) => {
       error: err.message || 'Connection failed. Check your API key.'
     });
   }
+  app.get('/dashboard', async (req, res) => {
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('score', { ascending: false });
+
+    if (error) throw error;
+
+    const redCount = customers.filter(c => c.risk_level === 'Red').length;
+
+    res.json({
+      totalCustomers: customers.length,
+      customers: customers.map(c => ({
+        customerId: c.stripe_customer_id || c.id,
+        customerEmail: c.email || 'Unknown',
+        score: c.score || c.risk_score || 0,
+        riskLevel: { label: c.risk_level || 'Green' },
+        signals: c.signals || []
+      }))
+    });
+
+  } catch (err) {
+    console.error('/dashboard error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
