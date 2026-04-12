@@ -527,7 +527,8 @@
         'Updated ' + new Date().toLocaleTimeString();
 
     } catch (err) {
-      document.getElementById('lastUpdated').textContent = 'Connection error';
+      document.getElementById('lastUpdated').textContent = 'Reconnecting...';
+setTimeout(fetchDashboard, 3000);
     }
   }
 
