@@ -251,7 +251,22 @@ app.get('/dashboard', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+app.post('/assess', async (req, res) => {
+  try {
+    const { stripe_customer_id, risk_level, risk_score } = req.body;
+    const { data: customers } = await supabase
+      .from('customers').select('*')
+      .eq('stripe_customer_id', stripe_customer_id).limit(1);
+    const customer = customers?.[0] || { 
+      stripe_customer_id, risk_level, risk_score, signals: [] 
+    };
+    const assessment = await generateChurnAssessment(customer);
+    res.json(assessment);
+  } catch(err) {
+    console.error('/assess error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post('/assess', async (req, res) => {
   try {
     const { stripe_customer_id, risk_level, risk_score } = req.body;
