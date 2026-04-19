@@ -22,7 +22,7 @@ Analyze this at-risk customer and provide:
 Customer Data:
 - Customer ID: ${customerData.stripe_customer_id}
 - Risk Score: ${customerData.risk_score}/100
-- Risk Level: ${customerData.risk_level}
+- - Risk Level: ${customerData.risk_level} (red = High Risk, yellow = At Risk, green = Healthy)
 - Signals Detected: ${JSON.stringify(customerData.signals)}
 - Days Since Last Activity: ${customerData.days_inactive || 'Unknown'}
 
