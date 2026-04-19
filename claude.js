@@ -26,7 +26,7 @@ Customer Data:
 - Signals Detected: ${JSON.stringify(customerData.signals)}
 - Days Since Last Activity: ${customerData.days_inactive || 'Unknown'}
 
-Keep the email under 100 words, warm and personal, not salesy.
+Keep the email under 100 words, write it as a genuine founder checking in - curious, direct,  no corporate language, no "no pitch here" phrases. sound like a real person.
 Format your response as JSON with keys: assessment, stage, email_subject, email_body`
       }
     ]
