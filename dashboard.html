@@ -518,6 +518,12 @@
             <div class="score-display">
               <div class="score-number ${level}">${c.score}</div>
               <div class="score-label">score</div>
+              <button onclick="sendAlert('${esc(c.customerId||'')}', this)" 
+                style="margin-top:8px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:0.6rem;padding:4px 8px;border-radius:4px;cursor:pointer;letter-spacing:1px;white-space:nowrap"
+                onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'"
+                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+                ✉ Alert
+              </button>
             </div>
           </div>
         `;
@@ -534,4 +540,31 @@ setTimeout(fetchDashboard, 3000);
 
   fetchDashboard();
   setInterval(fetchDashboard, 30000);
+  async function sendAlert(customerId, btn) {
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${BACKEND}/alert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = '✓ Sent';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    } else {
+      throw new Error(data.error);
+    }
+  } catch(err) {
+    btn.textContent = '✕ Failed';
+    btn.style.color = 'var(--red)';
+    console.error(err);
+    setTimeout(() => {
+      btn.textContent = '✉ Alert';
+      btn.disabled = false;
+    }, 3000);
+  }
+}
 </script>
