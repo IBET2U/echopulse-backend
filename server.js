@@ -4,6 +4,8 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const { generateChurnAssessment } = require('./claude');
 const { sendChurnAlert } = require('./mailer');
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const cors = require('cors');
 const app = express();
 const supabase = createClient(
@@ -281,6 +283,45 @@ app.post('/assess', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post('/echoassist', async (req, res) => {
+  try {
+    const { transcript, language } = req.body;
+    if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
+
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: `You are EchoAssist, a real-time AI coach for customer service reps on live calls.
+
+A customer just said:
+"${transcript}"
+
+${language && language !== 'en' ? `The customer appears to be speaking ${language}. Translate what they said to English first.` : ''}
+
+Respond ONLY with valid JSON — no markdown, no explanation:
+{
+  "translation": "English translation if not English, otherwise null",
+  "sentiment": "positive or neutral or frustrated or angry",
+  "suggested_response": "What the rep should say next, under 50 words, warm and direct",
+  "suggested_response_spanish": "Same response in Spanish",
+  "alert": "CANCEL THREAT or PAYMENT ISSUE or ESCALATION NEEDED or null",
+  "coaching_tip": "One quick tip for the rep, under 15 words"
+}`
+      }]
+    });
+
+    const text = message.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    res.json({ success: true, ...parsed });
+  } catch (err) {
+    console.error('/echoassist error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
