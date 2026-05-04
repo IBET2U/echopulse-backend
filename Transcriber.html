@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; background: transparent; }
+  </style>
+</head>
+<body>
+  <script>
+    let recognition = null;
+    let isListening = false;
+
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'START_RECOGNITION') startRecognition();
+      if (event.data.type === 'STOP_RECOGNITION') stopRecognition();
+    });
+
+    function startRecognition() {
+      if (isListening) return;
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        window.parent.postMessage({ type: 'RECOGNITION_ERROR', error: 'Not supported' }, '*');
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        window.parent.postMessage({ type: 'RECOGNITION_STARTED' }, '*');
+      };
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += t + ' ';
+          } else {
+            interim += t;
+          }
+        }
+        window.parent.postMessage({
+          type: 'RECOGNITION_RESULT',
+          final: final,
+          interim: interim
+        }, '*');
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'no-speech') return;
+        if (event.error === 'aborted') return;
+        window.parent.postMessage({ type: 'RECOGNITION_ERROR', error: event.error }, '*');
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          try { recognition.start(); } catch(e) {}
+        }
+      };
+
+      recognition.start();
+    }
+
+    function stopRecognition() {
+      isListening = false;
+      if (recognition) {
+        recognition.stop();
+        recognition = null;
+      }
+      window.parent.postMessage({ type: 'RECOGNITION_STOPPED' }, '*');
+    }
+  </script>
+</body>
+</html>
