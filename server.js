@@ -325,7 +325,45 @@ Respond ONLY with valid JSON — no markdown, no explanation:
     res.status(500).json({ error: err.message });
   }
 });
+app.post('/echoassist-summary', async (req, res) => {
+  try {
+    const { transcript } = req.body;
+    if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
 
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `You are EchoAssist. A customer service call just ended. Here is the full transcript:
+
+"${transcript}"
+
+Generate a structured call summary. Respond ONLY with valid JSON — no markdown, no explanation:
+{
+  "reason_for_call": "One sentence describing why the customer called",
+  "customer_sentiment": "positive or neutral or frustrated or angry",
+  "churn_risk": "high or medium or low",
+  "key_points": ["point 1", "point 2", "point 3"],
+  "outcome": "One sentence describing what was resolved or decided",
+  "next_steps": ["step 1", "step 2"],
+  "compliance_flags": ["flag 1"] or [],
+  "rep_performance_score": 85,
+  "rep_performance_note": "One sentence coaching note for the rep"
+}`
+      }]
+    });
+
+    const text = message.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    res.json({ success: true, ...parsed });
+
+  } catch (err) {
+    console.error('/echoassist-summary error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
