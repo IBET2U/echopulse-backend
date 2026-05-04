@@ -293,7 +293,7 @@ app.post('/echoassist', async (req, res) => {
       max_tokens: 512,
       messages: [{
         role: 'user',
-        content: `You are EchoAssist, a real-time AI coach for customer service reps on live calls.
+        content: `You are EchoAssist, a real-time AI coach for customer service and insurance reps on live calls.
 
 A customer just said:
 "${transcript}"
@@ -304,6 +304,9 @@ Respond ONLY with valid JSON — no markdown, no explanation:
 {
   "translation": "English translation if not English, otherwise null",
   "sentiment": "positive or neutral or frustrated or angry",
+  "churn_risk": "high or medium or low",
+  "churn_reason": "one sentence explaining the churn risk level",
+  "retention_action": "exactly what the rep should do right now to keep the customer",
   "suggested_response": "What the rep should say next, under 50 words, warm and direct",
   "suggested_response_spanish": "Same response in Spanish",
   "alert": "CANCEL THREAT or PAYMENT ISSUE or ESCALATION NEEDED or null",
@@ -316,6 +319,7 @@ Respond ONLY with valid JSON — no markdown, no explanation:
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     res.json({ success: true, ...parsed });
+
   } catch (err) {
     console.error('/echoassist error:', err.message);
     res.status(500).json({ error: err.message });
