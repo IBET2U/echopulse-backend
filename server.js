@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
@@ -7,6 +8,9 @@ const { sendChurnAlert } = require('./mailer');
 const Anthropic = require('@anthropic-ai/sdk');
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const cors = require('cors');
+const { apiLimiter } = require('./middleware/rateLimiter');
+const { startScheduler } = require('./intelligence/scheduler');
+const intelligenceRoutes = require('./routes/intelligence');
 const app = express();
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -16,6 +20,8 @@ const supabase = createClient(
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(cors());
+app.use('/api/', apiLimiter);
+app.use('/api/intelligence', intelligenceRoutes);
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
 });app.post('/waitlist', async (req, res) => {
@@ -366,6 +372,7 @@ Generate a structured call summary. Respond ONLY with valid JSON — no markdown
 });
 
 const PORT = process.env.PORT || 3000;
+startScheduler();
 app.listen(PORT, () => {
   console.log(`EchoPulse server running on port ${PORT}`);
 });
