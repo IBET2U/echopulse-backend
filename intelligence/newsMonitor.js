@@ -39,7 +39,7 @@ function sevenDaysAgoYyyyMmDd() {
 
 async function runNewsMonitor() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY;
   const newsApiKey = process.env.NEWS_API_KEY;
 
   if (!url || !key) {
