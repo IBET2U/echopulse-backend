@@ -260,7 +260,12 @@ app.post('/connect', async (req, res) => {
 
 app.get('/dashboard', async (req, res) => {
   try {
-    const { data: customers, error } = await supabase
+    const { createClient } = require('@supabase/supabase-js');
+    const serviceSupabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
+    const { data: customers, error } = await serviceSupabase
       .from('customers')
       .select('*')
       .order('risk_score', { ascending: false });
