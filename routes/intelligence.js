@@ -3,6 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 const { validateContact } = require("../validators/inputValidator");
 const { strictLimiter } = require("../middleware/rateLimiter");
+const { requireAuth } = require("../middleware/clerkAuth");
 const { runChampionScan } = require("../intelligence/championMonitor");
 const { runNewsMonitor } = require("../intelligence/newsMonitor");
 
@@ -34,7 +35,7 @@ function getAuthenticatedUserId(req) {
   );
 }
 
-router.post("/contacts", async (req, res) => {
+router.post("/contacts", requireAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
 
@@ -76,7 +77,7 @@ router.post("/contacts", async (req, res) => {
   }
 });
 
-router.get("/contacts", async (req, res) => {
+router.get("/contacts", requireAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
 
@@ -101,7 +102,7 @@ router.get("/contacts", async (req, res) => {
   }
 });
 
-router.get("/signals", async (req, res) => {
+router.get("/signals", requireAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
 
@@ -126,7 +127,7 @@ router.get("/signals", async (req, res) => {
   }
 });
 
-router.post("/scan", strictLimiter, async (_req, res) => {
+router.post("/scan", strictLimiter, requireAuth, async (_req, res) => {
   try {
     await runChampionScan();
     return res.json({ success: true, message: "Champion scan completed" });
