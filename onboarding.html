@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoPulse — Onboarding</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --primary: #6366f1;
+        --text: #ffffff;
+        --muted: #94a3b8;
+        --border: rgba(148, 163, 184, 0.22);
+        --danger: #ef4444;
+        --success: #22c55e;
+        --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(
+            1200px 700px at 20% 10%,
+            rgba(99, 102, 241, 0.18),
+            transparent 55%
+          ),
+          radial-gradient(
+            900px 600px at 80% 0%,
+            rgba(99, 102, 241, 0.12),
+            transparent 60%
+          ),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          "Apple Color Emoji",
+          "Segoe UI Emoji";
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      a:hover {
+        color: var(--text);
+      }
+
+      .page {
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 28px 16px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 980px;
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 18px;
+      }
+
+      .card {
+        background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.05),
+            rgba(255, 255, 255, 0.02)
+          ),
+          var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .left {
+        padding: 26px 26px 24px 26px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: radial-gradient(
+            14px 14px at 30% 30%,
+            rgba(255, 255, 255, 0.45),
+            rgba(255, 255, 255, 0.07) 60%,
+            transparent 75%
+          ),
+          linear-gradient(135deg, rgba(99, 102, 241, 1), rgba(139, 92, 246, 1));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .brand h1 {
+        font-size: 18px;
+        margin: 0;
+        letter-spacing: 0.2px;
+      }
+
+      .subtitle {
+        margin: 0 0 18px 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .step {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 14px;
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        background: rgba(15, 23, 42, 0.25);
+      }
+
+      .badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: rgba(99, 102, 241, 0.16);
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        color: #c7d2fe;
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .step-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .step-desc {
+        margin: 4px 0 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .security {
+        margin-top: 18px;
+        padding: 14px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        background: rgba(34, 197, 94, 0.07);
+        color: #bbf7d0;
+        font-size: 13px;
+      }
+
+      .right {
+        padding: 22px;
+      }
+
+      .panel-title {
+        margin: 0 0 6px 0;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .panel-subtitle {
+        margin: 0 0 14px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.35);
+        color: var(--text);
+        padding: 11px 12px;
+        outline: none;
+        font-size: 14px;
+      }
+
+      input::placeholder {
+        color: rgba(148, 163, 184, 0.7);
+      }
+
+      input:focus {
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+      }
+
+      .hint {
+        margin: 0;
+        font-size: 12px;
+        color: rgba(148, 163, 184, 0.85);
+      }
+
+      .hint strong {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .actions {
+        margin-top: 4px;
+        display: grid;
+        gap: 10px;
+      }
+
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        color: white;
+        background: linear-gradient(135deg, var(--primary), #8b5cf6);
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      .status {
+        border-radius: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.25);
+        font-size: 13px;
+        color: var(--muted);
+        display: none;
+        white-space: pre-line;
+      }
+
+      .status--error {
+        color: #fecaca;
+        border-color: rgba(239, 68, 68, 0.35);
+        background: rgba(239, 68, 68, 0.08);
+      }
+
+      .status--success {
+        color: #bbf7d0;
+        border-color: rgba(34, 197, 94, 0.35);
+        background: rgba(34, 197, 94, 0.08);
+      }
+
+      .fineprint {
+        margin-top: 10px;
+        color: rgba(148, 163, 184, 0.85);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .footer {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        font-size: 12px;
+        color: rgba(199, 210, 254, 0.95);
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        background: rgba(99, 102, 241, 0.12);
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
+
+      @media (max-width: 900px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+        .left,
+        .right {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="container">
+        <section class="card left" aria-label="How EchoPulse works">
+          <div class="brand">
+            <div class="logo" aria-hidden="true"></div>
+            <div>
+              <h1>EchoPulse</h1>
+              <p class="subtitle">B2B churn intelligence that monitors real-world risk signals.</p>
+            </div>
+          </div>
+
+          <div class="steps" role="list" aria-label="Onboarding steps">
+            <div class="step" role="listitem">
+              <div class="badge">1</div>
+              <div>
+                <p class="step-title">Connect your Stripe</p>
+                <p class="step-desc">Use a restricted key with read-only access.</p>
+              </div>
+            </div>
+            <div class="step" role="listitem">
+              <div class="badge">2</div>
+              <div>
+                <p class="step-title">We import your customers</p>
+                <p class="step-desc">Your accounts appear instantly in EchoPulse.</p>
+              </div>
+            </div>
+            <div class="step" role="listitem">
+              <div class="badge">3</div>
+              <div>
+                <p class="step-title">World monitoring begins automatically</p>
+                <p class="step-desc">News signals and champion changes trigger alerts.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="security">
+            <strong>Security note:</strong> Your Stripe key is encrypted and never shared. Read only access only.
+          </div>
+        </section>
+
+        <section class="card right" aria-label="Connect Stripe">
+          <h2 class="panel-title">Connect Stripe to start monitoring</h2>
+          <p class="panel-subtitle">
+            Enter your details and a Stripe <strong>restricted key</strong>. We’ll import your customers and start monitoring.
+          </p>
+
+          <form id="connectForm" autocomplete="on" novalidate>
+            <label>
+              Your Name
+              <input
+                id="founderName"
+                name="founder_name"
+                type="text"
+                placeholder="Jane Founder"
+                required
+              />
+            </label>
+
+            <label>
+              Your Email
+              <input
+                id="founderEmail"
+                name="founder_email"
+                type="email"
+                placeholder="jane@company.com"
+                required
+              />
+            </label>
+
+            <label>
+              Stripe Restricted Key
+              <input
+                id="stripeKey"
+                name="stripe_key"
+                type="password"
+                placeholder="rk_live_..."
+                required
+              />
+              <p class="hint">
+                Create one in Stripe:
+                <strong>Developers → API keys → Restricted keys</strong>. Grant
+                <strong>read-only</strong> access for Customers, Subscriptions, Invoices, and Webhook Endpoints.
+              </p>
+            </label>
+
+            <div class="actions">
+              <button id="submitBtn" type="submit">Connect Stripe</button>
+              <div id="status" class="status" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="footer">
+              <span class="pill">Dark-mode ready • Mobile friendly</span>
+              <a href="/dashboard.html" aria-label="Go to dashboard">Dashboard</a>
+            </div>
+
+            <p class="fineprint">
+              By connecting, you authorize EchoPulse to read customer metadata needed for churn intelligence. You can revoke the
+              key at any time in Stripe.
+            </p>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const ENDPOINT = "https://echopulse-backend.onrender.com/connect";
+
+      const form = document.getElementById("connectForm");
+      const submitBtn = document.getElementById("submitBtn");
+      const statusEl = document.getElementById("status");
+
+      function setStatus(type, message) {
+        statusEl.className = "status";
+        if (type === "error") statusEl.classList.add("status--error");
+        if (type === "success") statusEl.classList.add("status--success");
+        statusEl.textContent = message;
+        statusEl.style.display = "block";
+      }
+
+      function clearStatus() {
+        statusEl.textContent = "";
+        statusEl.style.display = "none";
+        statusEl.className = "status";
+      }
+
+      function setLoading(isLoading) {
+        submitBtn.disabled = isLoading;
+        submitBtn.textContent = isLoading ? "Connecting..." : "Connect Stripe";
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearStatus();
+
+        const founder_name = document.getElementById("founderName").value.trim();
+        const founder_email = document.getElementById("founderEmail").value.trim();
+        const stripe_key = document.getElementById("stripeKey").value.trim();
+
+        if (!founder_name || !founder_email || !stripe_key) {
+          setStatus("error", "Please fill out all fields.");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const resp = await fetch(ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stripe_key, founder_name, founder_email }),
+          });
+
+          let data = null;
+          try {
+            data = await resp.json();
+          } catch (_) {
+            data = null;
+          }
+
+          if (!resp.ok) {
+            const msg = data?.error || `Connection failed (HTTP ${resp.status}).`;
+            setStatus("error", msg);
+            setLoading(false);
+            return;
+          }
+
+          const count = data?.customers_imported ?? 0;
+          setStatus(
+            "success",
+            `Connected! Monitoring ${count} customers.\nRedirecting to dashboard...`,
+          );
+
+          setTimeout(() => {
+            window.location.href = "/dashboard.html";
+          }, 3000);
+        } catch (err) {
+          setStatus("error", err?.message || "Network error. Please try again.");
+          setLoading(false);
+        }
+      });
+    </script>
+  </body>
+</html>

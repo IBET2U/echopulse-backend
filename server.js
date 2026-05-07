@@ -213,6 +213,7 @@ app.post('/connect', async (req, res) => {
       founder_email,
       connected_at: new Date().toISOString()
     });
+    const defaultUserId = '00000000-0000-0000-0000-000000000000';
     for (const customer of customers.data) {
       await supabase.from('customers').upsert({
         stripe_customer_id: customer.id,
@@ -223,6 +224,36 @@ app.post('/connect', async (req, res) => {
         signals: [],
         created_at: new Date().toISOString()
       });
+
+      const emailDomain = (customer.email || '').split('@')[1] || null;
+      const company_name = customer.name || emailDomain || 'Unknown';
+
+      const { data: existingCompany, error: existsError } = await supabase
+        .from('monitored_contacts')
+        .select('id')
+        .eq('company_name', company_name)
+        .maybeSingle();
+
+      if (existsError) {
+        console.error('monitored_contacts lookup error:', existsError.message);
+        continue;
+      }
+
+      if (!existingCompany) {
+        const { error: insertContactError } = await supabase
+          .from('monitored_contacts')
+          .insert({
+            stripe_customer_id: customer.id,
+            company_name,
+            user_id: defaultUserId,
+            linkedin_url: null,
+            contact_name: null
+          });
+
+        if (insertContactError) {
+          console.error('monitored_contacts insert error:', insertContactError.message);
+        }
+      }
     }
     res.json({ 
       success: true,

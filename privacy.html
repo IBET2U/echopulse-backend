@@ -1,31 +1,190 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>EchoAssist Privacy Policy</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }
-    h1 { color: #00ff88; }
-    h2 { margin-top: 30px; }
-  </style>
-</head>
-<body>
-  <h1>EchoAssist Privacy Policy</h1>
-  <p>Last updated: May 5, 2026</p>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoPulse Privacy Policy</title>
+    <style>
+      :root {
+        --bg: #080c12;
+        --surface: #0d1520;
+        --border: #1a2535;
+        --green: #00ff88;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+      }
 
-  <h2>What We Collect</h2>
-  <p>EchoAssist processes voice transcripts from your microphone during active calls. These transcripts are sent to our AI backend solely to generate real-time coaching suggestions and call summaries.</p>
+      * {
+        box-sizing: border-box;
+      }
 
-  <h2>How We Use Your Data</h2>
-  <p>Transcripts are processed in real time to provide AI coaching suggestions. We do not store, sell, or share your call transcripts with any third party.</p>
+      body {
+        margin: 0;
+        background: radial-gradient(
+            900px 600px at 25% 0%,
+            rgba(0, 255, 136, 0.08),
+            transparent 55%
+          ),
+          radial-gradient(
+            900px 600px at 85% 20%,
+            rgba(0, 255, 136, 0.05),
+            transparent 60%
+          ),
+          var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+          Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        line-height: 1.6;
+        padding: 40px 16px;
+      }
 
-  <h2>Data Retention</h2>
-  <p>Call transcripts are processed and discarded immediately. No call content is stored on our servers.</p>
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+      }
 
-  <h2>Third Party Services</h2>
-  <p>EchoAssist uses the Anthropic Claude API to process transcripts. No personally identifiable information is included in API requests.</p>
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 26px 22px;
+      }
 
-  <h2>Contact</h2>
-  <p>For privacy questions contact: obinna@echopulse.co</p>
-</body>
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+      }
+
+      .brand .dot {
+        width: 10px;
+        height: 10px;
+        background: var(--green);
+        border-radius: 50%;
+        box-shadow: 0 0 14px rgba(0, 255, 136, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .updated {
+        margin: 0 0 18px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      h2 {
+        margin: 22px 0 10px;
+        font-size: 16px;
+        letter-spacing: 0.01em;
+      }
+
+      p {
+        margin: 0 0 10px 0;
+        color: rgba(226, 232, 240, 0.92);
+      }
+
+      ul {
+        margin: 0 0 10px 18px;
+        padding: 0;
+        color: rgba(226, 232, 240, 0.92);
+      }
+
+      li {
+        margin: 8px 0;
+      }
+
+      .note {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 255, 136, 0.22);
+        background: rgba(0, 255, 136, 0.06);
+        color: #bbf7d0;
+        font-size: 13px;
+      }
+
+      a {
+        color: var(--green);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="brand">
+          <span class="dot" aria-hidden="true"></span>
+          <h1>EchoPulse Privacy Policy</h1>
+        </div>
+        <p class="updated">Last updated: May 7, 2026</p>
+
+        <p>
+          EchoPulse is a B2B churn intelligence platform. This policy explains what we collect, how
+          we use it, and your choices.
+        </p>
+
+        <h2>1. What data we collect</h2>
+        <ul>
+          <li>
+            <strong>Stripe customer IDs and company names</strong>: Used to identify which accounts
+            to monitor and associate signals with the correct customer.
+          </li>
+          <li>
+            <strong>News signals from public sources</strong>: We query public news sources for
+            relevant events (e.g., layoffs, acquisitions) tied to your customer companies.
+          </li>
+          <li>
+            <strong>LinkedIn profile changes via Proxycurl</strong>: We may check for job/company
+            changes for key contacts you choose to monitor.
+          </li>
+        </ul>
+
+        <h2>2. How we use your data</h2>
+        <ul>
+          <li><strong>To monitor churn signals</strong> and detect risk patterns early.</li>
+          <li><strong>To send alert emails</strong> when a meaningful signal is detected.</li>
+          <li><strong>Never sold to third parties</strong>: We do not sell your data.</li>
+        </ul>
+
+        <h2>3. Data security</h2>
+        <ul>
+          <li><strong>All data encrypted at rest</strong> in our storage providers.</li>
+          <li>
+            <strong>Supabase Row Level Security</strong> is used to restrict access to your records.
+          </li>
+          <li>
+            <strong>Keys never stored in plain text</strong>: API keys are handled securely and are
+            not stored in plaintext.
+          </li>
+        </ul>
+
+        <h2>4. Your rights</h2>
+        <ul>
+          <li><strong>Delete your data anytime</strong> by requesting deletion.</li>
+          <li><strong>Export your data on request</strong> in a reasonable format.</li>
+        </ul>
+
+        <h2>5. Contact</h2>
+        <p>
+          For privacy questions, requests, or concerns, email
+          <a href="mailto:obinna@echopulse.co">obinna@echopulse.co</a>.
+        </p>
+
+        <div class="note">
+          We aim to collect only what we need to provide churn intelligence and alerts. If you have
+          questions about a specific data field or integration, reach out anytime.
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

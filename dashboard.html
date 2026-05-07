@@ -289,6 +289,137 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    .signals-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 10px 0 12px 0;
+    }
+
+    .signals-toolbar button {
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.3);
+      color: #00ff88;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: transform 0.08s ease, border-color 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .signals-toolbar button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .signals-toolbar button:active {
+      transform: translateY(1px);
+    }
+
+    .world-signals {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .signal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .signal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--green);
+    }
+
+    .signal-card.red::before { background: var(--red); }
+    .signal-card.yellow::before { background: var(--yellow); }
+
+    .signal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .signal-company {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .signal-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      padding: 0.22rem 0.5rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .pill-tag strong { color: var(--text); }
+
+    .signal-body {
+      display: grid;
+      gap: 10px;
+      color: var(--text);
+    }
+
+    .signal-row-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .signal-text {
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+
+    .signal-action {
+      color: #cbd5e1;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .signals-note {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -332,6 +463,17 @@
 
   <div class="customer-list" id="customerList">
     <div class="empty-state">Waiting for Stripe events...</div>
+  </div>
+
+  <div style="margin-top: 2.5rem">
+    <div class="section-title">World Signals</div>
+    <div class="signals-toolbar">
+      <div class="signals-note" id="signalsStatus">Loading signals…</div>
+      <button id="runIntelBtn" onclick="runIntelligenceScan()">RUN INTELLIGENCE SCAN</button>
+    </div>
+    <div class="world-signals" id="worldSignals">
+      <div class="empty-state" style="grid-column: 1 / -1; padding: 2.5rem">Loading signals…</div>
+    </div>
   </div>
    </div>
 <!-- Settings Panel -->
@@ -538,8 +680,125 @@ setTimeout(fetchDashboard, 3000);
     }
   }
 
+  function riskColor(score) {
+    if (score >= 75) return 'red';
+    if (score >= 50) return 'yellow';
+    return 'green';
+  }
+
+  function formatTime(ts) {
+    if (!ts) return 'Unknown';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'Unknown';
+    return d.toLocaleString();
+  }
+
+  async function fetchWorldSignals() {
+    const status = document.getElementById('signalsStatus');
+    const container = document.getElementById('worldSignals');
+
+    try {
+      status.textContent = 'Loading signals…';
+      const res = await fetch(`${BACKEND}/api/intelligence/signals`);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const msg = (data && data.error) ? data.error : `Failed to load signals (HTTP ${res.status}).`;
+        status.textContent = msg;
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 2.5rem">${msg}</div>`;
+        return;
+      }
+
+      const signals = Array.isArray(data) ? data : [];
+      status.textContent = signals.length ? `Showing ${signals.length} signal${signals.length === 1 ? '' : 's'}` : 'No world signals detected yet.';
+
+      if (!signals.length) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; padding: 2.5rem">No world signals yet. Run a scan to fetch fresh intelligence.</div>';
+        return;
+      }
+
+      container.innerHTML = signals.map((s, i) => {
+        const score = Number(s.risk_score || 0);
+        const level = riskColor(score);
+        const company = s.company_name || 'Unknown company';
+        const type = s.signal_type || 'UNKNOWN';
+        const description = s.signal_description || '';
+        const action = s.recommended_action || '';
+        const detectedAt = formatTime(s.created_at);
+
+        return `
+          <div class="signal-card ${level} fade-in" style="animation-delay: ${i * 0.04}s">
+            <div class="signal-head">
+              <div>
+                <div class="signal-company">${company}</div>
+                <div class="signal-meta">
+                  <span class="pill-tag">${type}</span>
+                  <span class="pill-tag"><strong style="color: var(--${level === 'red' ? 'red' : level === 'yellow' ? 'yellow' : 'green'})">${score}</strong> / 100</span>
+                </div>
+              </div>
+              <div class="score-display" style="text-align:right">
+                <div class="score-number ${level}" style="font-size: 1.25rem">${score}</div>
+                <div class="score-label">risk</div>
+              </div>
+            </div>
+
+            <div class="signal-body">
+              <div>
+                <div class="signal-row-label">Signal description</div>
+                <div class="signal-text">${description}</div>
+              </div>
+              <div>
+                <div class="signal-row-label">Recommended action</div>
+                <div class="signal-action">${action}</div>
+              </div>
+              <div>
+                <div class="signal-row-label">Time detected</div>
+                <div class="signal-text" style="color: var(--muted)">${detectedAt}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      const msg = 'Failed to load signals. Retrying…';
+      status.textContent = msg;
+      container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 2.5rem">${msg}</div>`;
+      setTimeout(fetchWorldSignals, 5000);
+    }
+  }
+
+  async function runIntelligenceScan() {
+    const btn = document.getElementById('runIntelBtn');
+    const status = document.getElementById('signalsStatus');
+
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'RUNNING…';
+    status.textContent = 'Running intelligence scan…';
+
+    try {
+      const res = await fetch(`${BACKEND}/api/intelligence/news-scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error((data && data.error) ? data.error : `Scan failed (HTTP ${res.status}).`);
+      }
+      status.textContent = 'Scan complete. Refreshing signals…';
+      await fetchWorldSignals();
+    } catch (err) {
+      status.textContent = 'Scan failed. ' + (err.message || '');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
   fetchDashboard();
   setInterval(fetchDashboard, 30000);
+  fetchWorldSignals();
+  setInterval(fetchWorldSignals, 60000);
   async function sendAlert(customerId, btn) {
   btn.textContent = 'Sending…';
   btn.disabled = true;
