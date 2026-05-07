@@ -195,20 +195,9 @@ app.post('/connect', async (req, res) => {
     const stripeClient = Stripe(stripe_key);
     const customers = await stripeClient.customers.list({ limit: 100 });
     const account_id = `acct_${Date.now()}`;
-    const webhook = await stripeClient.webhookEndpoints.create({
-      url: 'https://echopulse-backend.onrender.com/webhook',
-      enabled_events: [
-        'customer.subscription.deleted',
-        'customer.subscription.updated', 
-        'customer.updated',
-        'invoice.payment_failed',
-        'payment_method.detached',
-        'customer.discount.created'
-      ],
-    });
     await supabase.from('accounts').upsert({
       account_id, stripe_key,
-      webhook_secret: webhook.secret,
+      webhook_secret: '',
       founder_name: founder_name || 'Founder',
       founder_email,
       connected_at: new Date().toISOString()
