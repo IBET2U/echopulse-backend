@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { createClient } = require("@supabase/supabase-js");
+const { sendChurnAlert } = require("../mailer");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -132,6 +133,58 @@ async function runNewsMonitor() {
     if (i < companies.length - 1) {
       await sleep(1000);
     }
+  }
+
+  try {
+    const { data: pendingSignals, error: pendingError } = await supabase
+      .from("churn_signals")
+      .select("*")
+      .eq("alert_sent", false);
+
+    if (pendingError) throw pendingError;
+
+    for (const signal of pendingSignals || []) {
+      try {
+        const customer = {
+          stripe_customer_id: signal.stripe_customer_id,
+          risk_level: "yellow",
+          risk_score: signal.risk_score,
+          email: "Unknown",
+          signals: [signal.signal_type],
+        };
+
+        const assessment = {
+          stage: signal.signal_type,
+          assessment: signal.signal_description,
+          email_subject: `EchoPulse Alert — ${signal.signal_type}`,
+          email_body: `${signal.signal_description}\n\nRecommended action: ${signal.recommended_action}`,
+        };
+
+        await sendChurnAlert(customer, assessment);
+
+        const { error: updateError } = await supabase
+          .from("churn_signals")
+          .update({ alert_sent: true })
+          .eq("id", signal.id);
+
+        if (updateError) {
+          console.error(
+            `[EchoPulse] Failed to mark alert_sent for signal ${signal.id}:`,
+            updateError.message,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[EchoPulse] Failed sending alert for signal ${signal?.id}:`,
+          err?.message || err,
+        );
+      }
+    }
+  } catch (err) {
+    console.error(
+      "[EchoPulse] Failed processing pending alerts:",
+      err?.message || err,
+    );
   }
 
   console.log("[EchoPulse] News monitor complete.");
