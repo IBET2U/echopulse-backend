@@ -31,8 +31,10 @@ const sendChurnAlert = async (customer, assessment) => {
   const riskLabel = getRiskLabel(riskScore);
   const signalType = assessment.stage || 'WORLD_SIGNAL';
   const signalDescription = assessment.assessment || '';
-  const recommendedAction = customer.recommended_action || 
-                            'Review this account immediately and reach out today.';
+  const recommendedAction = 
+  assessment?.recommended_action ||
+  customer?.recommended_action ||
+  'Review this account immediately and reach out today.';
 
   const html = `
 <!DOCTYPE html>

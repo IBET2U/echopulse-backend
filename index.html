@@ -1,1274 +1,835 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EchoPulse — Catch Customers Before They Cancel</title>
-<meta name="description" content="Find out how much revenue you're losing to shadow churn. Free calculator for SaaS founders. EchoPulse detects at-risk customers before they cancel.">
-<meta property="og:title" content="EchoPulse — How Much Are You Losing to Shadow Churn?">
-<meta property="og:description" content="Free Stripe Churn Risk Calculator. Enter your numbers. Get your revenue risk score in 30 seconds.">
-<meta property="og:url" content="https://echopulse.co">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #060d1a;
-  --bg2: #0a1628;
-  --bg3: #0d1f3c;
-  --surface: #0c1829;
-  --surface2: #101f35;
-  --border: #1a2e4a;
-  --teal: #00d4aa;
-  --teal-dim: rgba(0,212,170,0.12);
-  --teal-glow: rgba(0,212,170,0.2);
-  --coral: #ff5f5f;
-  --gold: #ffb547;
-  --white: #f0f6ff;
-  --muted: #6b8aaa;
-  --text: #c8d8ea;
-}
-
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  overflow-x: hidden;
-  line-height: 1.6;
-}
-
-/* Grid bg */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image:
-    linear-gradient(rgba(0,212,170,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,170,0.025) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ── NAV ── */
-nav {
-  position: fixed; top: 0; left: 0; right: 0;
-  z-index: 100;
-  background: rgba(6,13,26,0.85);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 40px;
-  height: 68px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nav-logo {
-  display: flex; align-items: center; gap: 12px;
-  text-decoration: none;
-}
-
-.nav-icon {
-  width: 36px; height: 36px;
-  background: var(--teal-dim);
-  border: 1px solid rgba(0,212,170,0.35);
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-.nav-brand {
-  font-family: 'Playfair Display', serif;
-  font-size: 20px; font-weight: 900;
-  color: var(--white);
-}
-.nav-brand span { color: var(--teal); }
-
-.nav-links {
-  display: flex; align-items: center; gap: 32px;
-  list-style: none;
-}
-
-.nav-links a {
-  font-size: 14px; color: var(--muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.nav-links a:hover { color: var(--teal); }
-
-.nav-cta {
-  background: var(--teal);
-  color: var(--bg) !important;
-  font-weight: 600 !important;
-  padding: 10px 22px;
-  border-radius: 8px;
-  transition: transform 0.15s, box-shadow 0.15s !important;
-}
-.nav-cta:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--teal-glow);
-  color: var(--bg) !important;
-}
-
-/* ── SECTIONS ── */
-section { position: relative; z-index: 1; }
-
-/* ── HERO ── */
-.hero {
-  min-height: 100vh;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  padding: 120px 24px 80px;
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-orb1 {
-  position: absolute;
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, rgba(0,212,170,0.06) 0%, transparent 65%);
-  top: -200px; left: 50%; transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.hero-orb2 {
-  position: absolute;
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(255,95,95,0.05) 0%, transparent 65%);
-  bottom: -100px; right: -100px;
-  pointer-events: none;
-}
-
-.hero-inner { max-width: 820px; margin: 0 auto; position: relative; z-index: 1; }
-
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--teal-dim);
-  border: 1px solid rgba(0,212,170,0.3);
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-family: 'Space Mono', monospace;
-  font-size: 11px; letter-spacing: 1.5px;
-  text-transform: uppercase; color: var(--teal);
-  margin-bottom: 28px;
-}
-
-.hero-badge-dot {
-  width: 6px; height: 6px;
-  background: var(--teal);
-  border-radius: 50%;
-  animation: blink 1.5s ease-in-out infinite;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.hero h1 {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(40px, 6vw, 72px);
-  font-weight: 900;
-  color: var(--white);
-  line-height: 1.08;
-  margin-bottom: 24px;
-  letter-spacing: -1px;
-}
-
-.hero h1 em {
-  font-style: italic;
-  color: var(--teal);
-}
-
-.hero h1 .coral { color: var(--coral); font-style: normal; }
-
-.hero-sub {
-  font-size: clamp(16px, 2vw, 20px);
-  color: var(--muted);
-  max-width: 580px;
-  margin: 0 auto 40px;
-  line-height: 1.7;
-}
-
-.hero-btns {
-  display: flex; align-items: center; justify-content: center;
-  gap: 16px; flex-wrap: wrap;
-}
-
-.btn-primary {
-  background: var(--teal);
-  color: var(--bg);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 16px; font-weight: 700;
-  padding: 16px 36px;
-  border-radius: 10px;
-  border: none; cursor: pointer;
-  text-decoration: none;
-  display: inline-flex; align-items: center; gap: 8px;
-  transition: transform 0.15s, box-shadow 0.2s;
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 32px var(--teal-glow);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: var(--white);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 16px; font-weight: 500;
-  padding: 16px 36px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex; align-items: center; gap: 8px;
-  transition: border-color 0.2s, color 0.2s;
-}
-.btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
-
-/* Hero stats */
-.hero-stats {
-  display: flex; align-items: center; justify-content: center;
-  gap: 48px; margin-top: 64px;
-  flex-wrap: wrap;
-}
-
-.hstat {
-  text-align: center;
-}
-
-.hstat-num {
-  font-family: 'Playfair Display', serif;
-  font-size: 36px; font-weight: 900;
-  color: var(--white);
-  display: block; line-height: 1;
-  margin-bottom: 4px;
-}
-
-.hstat-num span { color: var(--teal); }
-
-.hstat-lbl {
-  font-size: 12px; color: var(--muted);
-  font-family: 'Space Mono', monospace;
-  letter-spacing: 0.5px;
-}
-
-.hstat-div {
-  width: 1px; height: 40px;
-  background: var(--border);
-}
-
-/* ── PROBLEM SECTION ── */
-.problem {
-  padding: 100px 24px;
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.section-wrap { max-width: 1100px; margin: 0 auto; }
-
-.section-eyebrow {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px; letter-spacing: 2.5px;
-  text-transform: uppercase; color: var(--teal);
-  margin-bottom: 16px; text-align: center;
-}
-
-.section-title {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(32px, 4vw, 52px);
-  font-weight: 900; color: var(--white);
-  text-align: center; margin-bottom: 16px;
-  line-height: 1.1; letter-spacing: -0.5px;
-}
-
-.section-title em { color: var(--teal); font-style: italic; }
-
-.section-sub {
-  font-size: 17px; color: var(--muted);
-  text-align: center; max-width: 580px;
-  margin: 0 auto 64px; line-height: 1.7;
-}
-
-.problem-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-@media(max-width: 768px) {
-  .problem-cards { grid-template-columns: 1fr; }
-  nav .nav-links { display: none; }
-}
-
-.prob-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 36px 28px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s, transform 0.2s;
-}
-
-.prob-card:hover {
-  border-color: rgba(0,212,170,0.3);
-  transform: translateY(-4px);
-}
-
-.prob-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--coral);
-}
-
-.prob-emoji {
-  font-size: 32px; margin-bottom: 16px; display: block;
-}
-
-.prob-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 20px; font-weight: 700;
-  color: var(--white); margin-bottom: 12px;
-}
-
-.prob-text {
-  font-size: 14px; color: var(--muted); line-height: 1.7;
-}
-
-/* ── CALCULATOR SECTION ── */
-.calc-section {
-  padding: 100px 24px;
-}
-
-.calc-inner { max-width: 720px; margin: 0 auto; }
-
-.calc-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 48px;
-  margin-bottom: 24px;
-}
-
-.calc-label {
-  font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 2.5px;
-  text-transform: uppercase; color: var(--muted);
-  margin-bottom: 28px;
-}
-
-.fields { display: flex; flex-direction: column; gap: 22px; }
-
-.field { display: flex; flex-direction: column; gap: 8px; }
-
-.field label {
-  font-size: 13px; font-weight: 500;
-  color: var(--text);
-  display: flex; align-items: center; gap: 7px;
-}
-
-.field label em { color: var(--teal); font-style: normal; font-size: 16px; }
-
-.ibox { position: relative; }
-
-.ipre, .isuf {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  font-family: 'Space Mono', monospace;
-  font-size: 14px; color: var(--muted);
-  pointer-events: none;
-}
-.ipre { left: 18px; }
-.isuf { right: 18px; }
-
-input[type=number] {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 15px 48px 15px 44px;
-  font-family: 'Space Mono', monospace;
-  font-size: 16px; color: var(--white);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  -moz-appearance: textfield;
-}
-input[type=number].bare { padding-left: 18px; }
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
-input[type=number]:focus {
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px var(--teal-dim);
-}
-
-.hint { font-size: 11px; color: var(--muted); }
-
-.calc-btn {
-  width: 100%; margin-top: 28px;
-  padding: 18px;
-  background: var(--teal);
-  border: none; border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 17px; font-weight: 700;
-  color: var(--bg); cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s;
-  letter-spacing: 0.2px;
-}
-.calc-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 36px var(--teal-glow);
-}
-
-/* Results */
-#results { display: none; }
-
-.result-hero {
-  background: linear-gradient(135deg, var(--surface), var(--bg3));
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 48px;
-  text-align: center;
-  margin-bottom: 16px;
-  position: relative; overflow: hidden;
-}
-
-.result-hero::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--coral), transparent);
-}
-
-.res-eyebrow {
-  font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--muted);
-  margin-bottom: 20px;
-}
-
-.big-loss {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(52px, 10vw, 84px);
-  font-weight: 900;
-  color: var(--coral);
-  line-height: 1; margin-bottom: 10px;
-  display: block;
-}
-.big-loss.safe { color: var(--teal); }
-.big-loss.warn { color: var(--gold); }
-
-.res-label {
-  font-size: 18px; color: var(--white);
-  font-weight: 500; margin-bottom: 8px;
-}
-.res-sub { font-size: 13px; color: var(--muted); }
-
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 12px; margin-bottom: 16px;
-}
-
-@media(max-width: 520px) { .metrics { grid-template-columns: 1fr; } }
-
-.met {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px 14px; text-align: center;
-}
-.met-val {
-  font-family: 'Playfair Display', serif;
-  font-size: 26px; font-weight: 700;
-  color: var(--white); margin-bottom: 4px; display: block;
-}
-.met-lbl { font-size: 11px; color: var(--muted); line-height: 1.4; }
-
-.risk-band {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px 24px;
-  margin-bottom: 16px;
-  display: flex; align-items: flex-start; gap: 14px;
-}
-.rdot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
-.rtxt { font-size: 13px; line-height: 1.6; }
-.rtxt strong { font-size: 14px; display: block; margin-bottom: 4px; }
-
-.pulse-card { margin-bottom: 16px; }
-
-.pulse-row {
-  display: flex; align-items: baseline;
-  gap: 10px; margin-bottom: 4px;
-}
-.pulse-num {
-  font-family: 'Playfair Display', serif;
-  font-size: 60px; font-weight: 900;
-  color: var(--white); line-height: 1;
-}
-.pulse-of { font-size: 14px; color: var(--muted); }
-.pulse-tag { font-size: 14px; font-weight: 600; margin-left: 6px; }
-.pbar-bg {
-  background: var(--surface2);
-  border-radius: 8px; height: 8px;
-  overflow: hidden; margin: 14px 0 6px;
-}
-.pbar-fill {
-  height: 100%; border-radius: 8px;
-  transition: width 1.1s cubic-bezier(0.34,1.56,0.64,1);
-  width: 0%;
-}
-.pbar-lbls {
-  display: flex; justify-content: space-between;
-  font-family: 'Space Mono', monospace;
-  font-size: 9px; color: var(--muted);
-}
-.pulse-desc { font-size: 12px; color: var(--muted); margin-top: 10px; }
-
-.reset-btn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 13px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; color: var(--muted);
-  cursor: pointer; width: 100%;
-  transition: border-color 0.2s, color 0.2s;
-  margin-top: 4px;
-}
-.reset-btn:hover { border-color: var(--teal); color: var(--teal); }
-
-/* ── SOLUTION SECTION ── */
-.solution {
-  padding: 100px 24px;
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.solution-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: center;
-  margin-top: 0;
-}
-
-@media(max-width: 768px) { .solution-grid { grid-template-columns: 1fr; } }
-
-.sol-features {
-  display: flex; flex-direction: column; gap: 24px;
-}
-
-.sol-feat {
-  display: flex; align-items: flex-start; gap: 16px;
-}
-
-.sol-icon {
-  width: 44px; height: 44px;
-  background: var(--teal-dim);
-  border: 1px solid rgba(0,212,170,0.25);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; flex-shrink: 0;
-}
-
-.sol-text h4 {
-  font-family: 'Playfair Display', serif;
-  font-size: 17px; font-weight: 700;
-  color: var(--white); margin-bottom: 4px;
-}
-
-.sol-text p { font-size: 13px; color: var(--muted); line-height: 1.6; }
-
-/* Dashboard mockup */
-.dash-mockup {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
-
-.dash-header {
-  background: var(--bg3);
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
-}
-
-.dash-dot { width: 10px; height: 10px; border-radius: 50%; }
-
-.dash-body { padding: 20px; }
-
-.dash-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px; font-weight: 700;
-  color: var(--white); margin-bottom: 4px;
-}
-
-.dash-sub {
-  font-size: 10px; color: var(--teal);
-  font-family: 'Space Mono', monospace;
-  margin-bottom: 16px;
-}
-
-.dash-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px; margin-bottom: 16px;
-}
-
-.ds {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-}
-
-.ds-val {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px; font-weight: 700;
-  color: var(--white); display: block; line-height: 1;
-  margin-bottom: 2px;
-}
-
-.ds-val.danger { color: var(--coral); }
-.ds-val.warn { color: var(--gold); }
-.ds-val.safe { color: var(--teal); }
-
-.ds-lbl { font-size: 10px; color: var(--muted); }
-
-/* Customer rows */
-.cust-rows { display: flex; flex-direction: column; gap: 8px; }
-
-.cust-row {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-
-.cust-name { font-size: 12px; color: var(--white); font-weight: 500; }
-.cust-detail { font-size: 10px; color: var(--muted); }
-
-.risk-badge {
-  font-family: 'Space Mono', monospace;
-  font-size: 10px; font-weight: 700;
-  padding: 3px 8px; border-radius: 20px;
-}
-.rb-high { background: rgba(255,95,95,0.15); color: var(--coral); }
-.rb-med { background: rgba(255,181,71,0.15); color: var(--gold); }
-.rb-low { background: rgba(0,212,170,0.15); color: var(--teal); }
-
-/* ── EARLY ACCESS ── */
-.early-access {
-  padding: 120px 24px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.early-access::before {
-  content: '';
-  position: absolute;
-  width: 800px; height: 800px;
-  background: radial-gradient(circle, rgba(0,212,170,0.06) 0%, transparent 65%);
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.ea-inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; }
-
-.ea-title {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(36px, 5vw, 56px);
-  font-weight: 900; color: var(--white);
-  line-height: 1.1; margin-bottom: 16px;
-  letter-spacing: -0.5px;
-}
-
-.ea-title em { color: var(--teal); font-style: italic; }
-
-.ea-sub {
-  font-size: 16px; color: var(--muted);
-  margin-bottom: 40px; line-height: 1.7;
-}
-
-.ea-form {
-  display: flex; gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 8px;
-  margin-bottom: 16px;
-}
-
-.ea-form input {
-  flex: 1; background: transparent;
-  border: none; outline: none;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px; color: var(--white);
-  padding: 10px 16px;
-}
-
-.ea-form input::placeholder { color: var(--muted); }
-
-.ea-form button {
-  background: var(--teal);
-  color: var(--bg);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px; font-weight: 700;
-  padding: 12px 28px;
-  border-radius: 10px;
-  border: none; cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.2s;
-  flex-shrink: 0;
-}
-
-.ea-form button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--teal-glow);
-}
-
-.ea-note {
-  font-size: 12px; color: var(--muted);
-  font-family: 'Space Mono', monospace;
-}
-
-/* Success state */
-.ea-success {
-  display: none;
-  background: rgba(0,212,170,0.1);
-  border: 1px solid rgba(0,212,170,0.3);
-  border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 16px;
-}
-.ea-success p {
-  color: var(--teal);
-  font-family: 'Playfair Display', serif;
-  font-size: 18px; font-style: italic;
-}
-
-/* ── FOOTER ── */
-footer {
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  padding: 40px 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  position: relative; z-index: 1;
-}
-
-.foot-logo {
-  display: flex; align-items: center; gap: 10px;
-}
-
-.foot-brand {
-  font-family: 'Playfair Display', serif;
-  font-size: 18px; font-weight: 900; color: var(--white);
-}
-.foot-brand span { color: var(--teal); }
-
-.foot-links {
-  display: flex; gap: 28px; list-style: none;
-}
-
-.foot-links a {
-  font-size: 13px; color: var(--muted);
-  text-decoration: none; transition: color 0.2s;
-}
-.foot-links a:hover { color: var(--teal); }
-
-.foot-copy {
-  font-size: 12px; color: var(--muted);
-  font-family: 'Space Mono', monospace;
-}
-
-/* ── Animations ── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-up { opacity: 0; animation: fadeUp 0.7s ease forwards; }
-.fd1 { animation-delay: 0.1s; }
-.fd2 { animation-delay: 0.2s; }
-.fd3 { animation-delay: 0.3s; }
-.fd4 { animation-delay: 0.4s; }
-.fd5 { animation-delay: 0.5s; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
+    <title>EchoPulse | Churn Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styles & CSS Variables */
+        :root {
+            --primary: #635bff;
+            --primary-hover: #0a2540;
+            --dark: #0a2540;
+            --text: #425466;
+            --text-light: #adbdcc;
+            --bg-light: #f6f9fc;
+            --white: #ffffff;
+            --success: #00d924;
+            --warning: #ffb020;
+            --danger: #ff3737;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 13px 27px -5px rgba(50, 50, 93, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            color: var(--text);
+            line-height: 1.6;
+            background-color: var(--white);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--dark);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+
+        a {
+            text-decoration: none;
+            color: var(--primary);
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: var(--primary-hover);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+            box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            color: var(--white);
+            transform: translateY(-1px);
+            box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--dark);
+            font-weight: 600;
+        }
+        
+        .btn-secondary::after {
+            content: '→';
+            margin-left: 4px;
+            transition: margin-left 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover::after {
+            margin-left: 8px;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--dark);
+            letter-spacing: -0.05em;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            padding: 180px 0 100px;
+            background-color: var(--bg-light);
+            overflow: hidden;
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: 
+                radial-gradient(circle at 100% 0%, rgba(99, 91, 255, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 0% 100%, rgba(10, 37, 64, 0.05) 0%, transparent 40%);
+            z-index: 0;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 700px;
+        }
+
+        .hero h1 {
+            font-size: 80px;
+            margin-bottom: 24px;
+            letter-spacing: -0.04em;
+        }
+
+        .hero p {
+            font-size: 22px;
+            color: var(--text);
+            margin-bottom: 40px;
+            max-width: 600px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Logos Section */
+        .logos {
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .logos p {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 30px;
+        }
+
+        .logos-grid {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 60px;
+            flex-wrap: wrap;
+            opacity: 0.5;
+            filter: grayscale(100%);
+        }
+
+        .logo-placeholder {
+            font-weight: 800;
+            font-size: 20px;
+            color: var(--dark);
+        }
+
+        /* Section Base */
+        .section {
+            padding: 120px 0;
+        }
+
+        .section-header {
+            text-align: left;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: 36px;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 20px;
+            color: var(--text);
+            max-width: 600px;
+        }
+
+        /* How It Works */
+        .how-it-works-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+
+        .step-card {
+            padding: 30px;
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(99, 91, 255, 0.1);
+            color: var(--primary);
+            font-weight: 700;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .step-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .step-card p {
+            color: var(--text);
+        }
+
+        /* Signals Section */
+        .signals-bg {
+            background-color: var(--dark);
+            color: var(--white);
+            clip-path: polygon(0 10%, 100% 0, 100% 90%, 0 100%);
+            padding: 160px 0;
+        }
+
+        .signals-bg h2 {
+            color: var(--white);
+        }
+
+        .signals-bg p {
+            color: var(--text-light);
+        }
+
+        .signals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .signal-card {
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            color: var(--text);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .signal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .signal-card.high::before { background-color: var(--danger); }
+        .signal-card.medium::before { background-color: var(--warning); }
+
+        .signal-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .signal-icon {
+            font-size: 24px;
+            width: 48px;
+            height: 48px;
+            background: var(--bg-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .signal-title {
+            font-weight: 700;
+            color: var(--dark);
+            font-size: 18px;
+        }
+
+        .signal-content {
+            margin-bottom: 20px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .signal-risk {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            padding-top: 20px;
+            border-top: 1px solid var(--bg-light);
+        }
+
+        .risk-badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .risk-high { background-color: rgba(255, 55, 55, 0.1); color: var(--danger); }
+        .risk-medium { background-color: rgba(255, 176, 32, 0.1); color: var(--warning); }
+
+        /* VS Section */
+        .vs-section {
+            padding: 120px 0;
+        }
+
+        .vs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .vs-col {
+            padding: 60px;
+        }
+
+        .vs-col-left {
+            background-color: var(--bg-light);
+            border-right: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .vs-col h3 {
+            font-size: 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vs-col-left h3 {
+            color: var(--text);
+        }
+
+        .vs-col-right h3 {
+            color: var(--primary);
+        }
+
+        .vs-list {
+            list-style: none;
+        }
+
+        .vs-list li {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .vs-col-left .vs-list li::before {
+            content: '×';
+            position: absolute;
+            left: 0;
+            color: var(--danger);
+            font-weight: bold;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .vs-col-right .vs-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+            font-size: 16px;
+            background: rgba(0, 217, 36, 0.1);
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            top: 2px;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            background-color: var(--bg-light);
+            padding: 120px 0;
+            clip-path: polygon(0 5%, 100% 0, 100% 100%, 0 100%);
+        }
+
+        .pricing .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .pricing-card {
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .pricing-card.popular {
+            border: 2px solid var(--primary);
+            box-shadow: var(--shadow-md);
+            transform: scale(1.05);
+            z-index: 1;
+        }
+        
+        .pricing-card.popular:hover {
+            transform: scale(1.05) translateY(-5px);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .pricing-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+
+        .pricing-price {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .pricing-period {
+            font-size: 16px;
+            color: var(--text);
+            font-weight: 400;
+        }
+
+        .pricing-feature {
+            font-size: 16px;
+            color: var(--text);
+            margin: 20px 0 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--bg-light);
+        }
+
+        .pricing-note {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 40px;
+            margin-bottom: 30px;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--bg-light);
+            padding: 60px 0;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .footer-brand .logo {
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .footer-tagline {
+            color: var(--text);
+            max-width: 300px;
+            font-size: 14px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 40px;
+        }
+
+        .footer-col h4 {
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 10px;
+        }
+
+        .footer-col ul a {
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .footer-col ul a:hover {
+            color: var(--primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .hero h1 { font-size: 56px; }
+            .hero p { font-size: 18px; }
+            .how-it-works-grid, .signals-grid, .pricing-grid { grid-template-columns: 1fr; }
+            .vs-grid { grid-template-columns: 1fr; }
+            .pricing-card.popular { transform: none; }
+            .pricing-card.popular:hover { transform: translateY(-5px); }
+            .footer-content { flex-direction: column; gap: 40px; }
+            .hero { clip-path: none; padding: 140px 0 60px; }
+            .signals-bg, .pricing { clip-path: none; }
+        }
+    </style>
 </head>
 <body>
 
-<!-- ── NAV ── -->
-<nav>
-  <a href="#" class="nav-logo">
-    <div class="nav-icon">
-      <svg width="22" height="22" viewBox="0 0 56 56" fill="none">
-        <defs>
-          <linearGradient id="npg" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#00d4aa" stop-opacity="0"/>
-            <stop offset="40%" stop-color="#00d4aa"/>
-            <stop offset="100%" stop-color="#00d4aa" stop-opacity="0"/>
-          </linearGradient>
-          <filter id="ngf">
-            <feGaussianBlur stdDeviation="2" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <clipPath id="ncp"><rect width="56" height="56"/></clipPath>
-        </defs>
-        <path d="M2 28 L12 28 L16 20 L20 36 L23 16 L26 40 L28 28 L31 28 L34 20 L37 28 L54 28"
-          stroke="url(#npg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
-          fill="none" filter="url(#ngf)" clip-path="url(#ncp)"/>
-        <circle cx="28" cy="28" r="3.5" fill="#00d4aa"/>
-        <circle cx="28" cy="28" r="1.6" fill="#fff" fill-opacity="0.9"/>
-      </svg>
-    </div>
-    <span class="nav-brand">Echo<span>Pulse</span></span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="#problem">The Problem</a></li>
-    <li><a href="#calculator">Calculator</a></li>
-    <li><a href="#solution">Solution</a></li>
-    <li><a href="#waitlist" class="nav-cta">Get Early Access</a></li>
-  </ul>
-</nav>
-
-<!-- ── HERO ── -->
-<section class="hero" id="home">
-  <div class="hero-orb1"></div>
-  <div class="hero-orb2"></div>
-  <div class="hero-inner">
-    <div class="hero-badge fade-up fd1">
-      <div class="hero-badge-dot"></div>
-      Revenue Protection Intelligence
-    </div>
-    <h1 class="fade-up fd2">
-      Every churn tool watches your product.<br>
-      <em>EchoPulse watches the world.</em>
-    </h1>
-    <p class="hero-sub fade-up fd3">
-      Monitor real world signals around your B2B customers — job changes, layoffs, acquisitions — and get alerted before they cancel.
-    </p>
-    <div class="hero-btns fade-up fd4">
-      <a href="/onboarding.html" class="btn-primary">Start Free Trial</a>
-      <a href="#how-it-works" class="btn-secondary">See how it works</a>
-    </div>
-    <div class="hero-stats fade-up fd5">
-      <div class="hstat">
-        <span class="hstat-num">5–<span>7%</span></span>
-        <span class="hstat-lbl">Avg MRR lost monthly</span>
-      </div>
-      <div class="hstat-div"></div>
-      <div class="hstat">
-        <span class="hstat-num"><span>85%</span></span>
-        <span class="hstat-lbl">AI prediction accuracy</span>
-      </div>
-      <div class="hstat-div"></div>
-      <div class="hstat">
-        <span class="hstat-num"><span>30</span>days</span>
-        <span class="hstat-lbl">Avg warning before cancel</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── PROBLEM ── -->
-<section class="problem" id="problem">
-  <div class="section-wrap">
-    <p class="section-eyebrow">// The Problem</p>
-    <h2 class="section-title">Most founders find out <em>too late.</em></h2>
-    <p class="section-sub">By the time a customer cancels, they made that decision weeks ago. You never had a chance to save them.</p>
-    <div class="problem-cards">
-      <div class="prob-card">
-        <span class="prob-emoji">👻</span>
-        <div class="prob-title">The Zombie Subscriber</div>
-        <p class="prob-text">Customers keep paying but stopped using your product weeks ago. Stripe sees a healthy subscription. You see nothing wrong. Until you do.</p>
-      </div>
-      <div class="prob-card">
-        <span class="prob-emoji">📉</span>
-        <div class="prob-title">Shadow Churn</div>
-        <p class="prob-text">The gap between billing and actual engagement. A customer disengages silently for 30 days then cancels. You never had a window to save them.</p>
-      </div>
-      <div class="prob-card">
-        <span class="prob-emoji">🔴</span>
-        <div class="prob-title">Always Too Late</div>
-        <p class="prob-text">Tools like Mixpanel and Baremetrics show you what already happened. Nobody tells you what to do about it — or who to call right now.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── CALCULATOR ── -->
-<section class="calc-section" id="calculator">
-  <div class="calc-inner">
-    <p class="section-eyebrow" style="text-align:center">// Free Tool</p>
-    <h2 class="section-title">How much are you <em>losing right now?</em></h2>
-    <p class="section-sub">Enter your numbers. Get your shadow churn risk score in 30 seconds.</p>
-
-    <div class="calc-card" id="calc-form">
-      <p class="calc-label">// Your Numbers</p>
-      <div class="fields">
-        <div class="field">
-          <label><em>💰</em> Monthly Recurring Revenue (MRR)</label>
-          <div class="ibox">
-            <span class="ipre">$</span>
-            <input type="number" id="mrr" placeholder="50000" min="0">
-          </div>
-          <span class="hint">Your total monthly subscription revenue</span>
-        </div>
-        <div class="field">
-          <label><em>📉</em> Monthly Churn Rate</label>
-          <div class="ibox">
-            <input type="number" id="churn" class="bare" placeholder="4.5" min="0" max="100" step="0.1">
-            <span class="isuf">%</span>
-          </div>
-          <span class="hint">% of customers who cancel each month — SaaS average is 4–7%</span>
-        </div>
-        <div class="field">
-          <label><em>👥</em> Total Active Customers</label>
-          <div class="ibox">
-            <input type="number" id="customers" class="bare" placeholder="500" min="0">
-          </div>
-          <span class="hint">Number of paying subscribers right now</span>
-        </div>
-      </div>
-      <button class="calc-btn" onclick="calculate()">⚡ Calculate My Shadow Churn Risk — Free</button>
+    <div class="container">
+        <nav>
+            <div class="logo">EchoPulse</div>
+            <a href="/onboarding.html" class="btn btn-primary">Start Free Trial</a>
+        </nav>
     </div>
 
-    <!-- Results -->
-    <div id="results">
-      <div class="result-hero">
-        <p class="res-eyebrow">// Your Revenue Risk Report</p>
-        <span class="big-loss" id="yloss">$0</span>
-        <p class="res-label">lost per year to shadow churn</p>
-        <p class="res-sub" id="rsub"></p>
-      </div>
-      <div class="metrics">
-        <div class="met"><span class="met-val" id="mm">—</span><span class="met-lbl">MRR lost<br>per month</span></div>
-        <div class="met"><span class="met-val" id="mar">—</span><span class="met-lbl">customers at<br>risk right now</span></div>
-        <div class="met"><span class="met-val" id="msh">—</span><span class="met-lbl">estimated<br>shadow churners</span></div>
-      </div>
-      <div class="risk-band calc-card" id="rband" style="padding:20px 24px">
-        <div class="rdot" id="rdot"></div>
-        <div class="rtxt" id="rtxt"></div>
-      </div>
-      <div class="calc-card pulse-card">
-        <p class="calc-label">// Company Pulse Score</p>
-        <div class="pulse-row">
-          <span class="pulse-num" id="pscore">—</span>
-          <span class="pulse-of">/ 100</span>
-          <span class="pulse-tag" id="ptag"></span>
-        </div>
-        <div class="pbar-bg"><div class="pbar-fill" id="pbar"></div></div>
-        <div class="pbar-lbls"><span>Emergency</span><span>High Risk</span><span>Moderate</span><span>Healthy</span></div>
-        <p class="pulse-desc" id="pdesc"></p>
-      </div>
-      <div style="text-align:center; margin-top:24px;">
-        <a href="#waitlist" class="btn-primary">🚀 Join Early Access — EchoPulse Will Fix This</a>
-      </div>
-      <button class="reset-btn" onclick="resetCalc()">← Recalculate with different numbers</button>
-    </div>
-  </div>
-</section>
-
-<!-- ── SOLUTION ── -->
-<section class="solution" id="solution">
-  <div class="section-wrap">
-    <p class="section-eyebrow">// The Solution</p>
-    <h2 class="section-title">EchoPulse catches the <em>shadow</em><br>before it disappears.</h2>
-    <p class="section-sub">Not just alerts. Not just dashboards. EchoPulse tells you who to save, why they are leaving, and exactly what to say.</p>
-
-    <div class="solution-grid">
-      <div class="sol-features">
-        <div class="sol-feat">
-          <div class="sol-icon">⚡</div>
-          <div class="sol-text">
-            <h4>Real-Time Churn Signals</h4>
-            <p>Monitors login frequency, feature usage, payment patterns and engagement drops continuously — not just when you remember to check.</p>
-          </div>
-        </div>
-        <div class="sol-feat">
-          <div class="sol-icon">🎯</div>
-          <div class="sol-text">
-            <h4>85% Accurate Predictions</h4>
-            <p>Our AI assigns every customer a Revenue Rescue Score from 0–100. Know exactly who is about to leave 30 days before they do.</p>
-          </div>
-        </div>
-        <div class="sol-feat">
-          <div class="sol-icon">🤖</div>
-          <div class="sol-text">
-            <h4>AI-Written Rescue Messages</h4>
-            <p>EchoPulse drafts a personalised email for each at-risk customer based on their specific behaviour. You review it. Click send. Customer saved.</p>
-          </div>
-        </div>
-        <div class="sol-feat">
-          <div class="sol-icon">💳</div>
-          <div class="sol-text">
-            <h4>Stripe-Native Integration</h4>
-            <p>Connects directly to your Stripe account via webhooks. No complex setup. No developer needed. Live in minutes.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dashboard mockup -->
-      <div class="dash-mockup">
-        <div class="dash-header">
-          <div class="dash-dot" style="background:#ff5f5f"></div>
-          <div class="dash-dot" style="background:#ffb547;margin-left:6px"></div>
-          <div class="dash-dot" style="background:#00d4aa;margin-left:6px"></div>
-          <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-left:12px">echopulse.co — dashboard</span>
-        </div>
-        <div class="dash-body">
-          <div class="dash-title">Customer Health Overview</div>
-          <div class="dash-sub">● Real-time Shadow Churn Monitoring</div>
-          <div class="dash-stats">
-            <div class="ds">
-              <span class="ds-val danger">23</span>
-              <span class="ds-lbl">⚠ High Risk</span>
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div class="container hero-content">
+            <h1>Every churn tool watches your product.<br>EchoPulse watches the world.</h1>
+            <p>Monitor real world signals around your B2B customers — layoffs, acquisitions, champion job changes — and get alerted before they cancel.</p>
+            <div class="hero-actions">
+                <a href="/onboarding.html" class="btn btn-primary">Start Free Trial</a>
+                <a href="#how-it-works" class="btn btn-secondary">See how it works</a>
             </div>
-            <div class="ds">
-              <span class="ds-val warn">71</span>
-              <span class="ds-lbl">🟡 At Risk</span>
-            </div>
-            <div class="ds">
-              <span class="ds-val safe">$24,680</span>
-              <span class="ds-lbl">MRR Protected</span>
-            </div>
-            <div class="ds">
-              <span class="ds-val safe">94.7%</span>
-              <span class="ds-lbl">AI Accuracy</span>
-            </div>
-          </div>
-          <div class="cust-rows">
-            <div class="cust-row">
-              <div>
-                <div class="cust-name">Sarah M. — Pro · $49/mo</div>
-                <div class="cust-detail">No login · 6 days</div>
-              </div>
-              <span class="risk-badge rb-high">85%</span>
-            </div>
-            <div class="cust-row">
-              <div>
-                <div class="cust-name">James T. — Basic · $19/mo</div>
-                <div class="cust-detail">Payment failed</div>
-              </div>
-              <span class="risk-badge rb-high">90%</span>
-            </div>
-            <div class="cust-row">
-              <div>
-                <div class="cust-name">Acme Inc. — Team · $299/mo</div>
-                <div class="cust-detail">Usage ↓ 63%</div>
-              </div>
-              <span class="risk-badge rb-med">72%</span>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- ── EARLY ACCESS ── -->
-<section class="early-access" id="waitlist">
-  <div class="ea-inner">
-    <p class="section-eyebrow">// Early Access</p>
-    <h2 class="ea-title">Be first when<br><em>we launch.</em></h2>
-    <p class="ea-sub">Join founders who are done losing revenue to customers they didn't know were leaving. Early access members get free onboarding and founding member pricing.</p>
+    <!-- LOGOS SECTION -->
+    <section class="logos">
+        <div class="container">
+            <p>Trusted by founders monitoring customers at</p>
+            <div class="logos-grid">
+                <div class="logo-placeholder">Acme Corp</div>
+                <div class="logo-placeholder">TechFlow</div>
+                <div class="logo-placeholder">GlobalNet</div>
+                <div class="logo-placeholder">Nexus</div>
+                <div class="logo-placeholder">CloudSync</div>
+            </div>
+        </div>
+    </section>
 
-    <div class="ea-form" id="ea-form">
-      <input type="email" id="ea-email" placeholder="yourname@company.com">
-      <button onclick="joinWaitlist()">Join Waitlist →</button>
-    </div>
+    <!-- HOW IT WORKS SECTION -->
+    <section id="how-it-works" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2>How EchoPulse Works</h2>
+                <p>We connect to your billing system and continuously scan the web for risk signals across your entire customer base.</p>
+            </div>
+            <div class="how-it-works-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Connect your Stripe in one click</h3>
+                    <p>Securely sync your customer list and MRR data in seconds. No engineering required.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>EchoPulse monitors the real world</h3>
+                    <p>Our intelligence engine tracks news, job changes, and company events around your customers automatically.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Get alerted with AI-powered insights</h3>
+                    <p>Receive prioritized alerts before they cancel, so your team can intervene and save the account.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <div class="ea-success" id="ea-success">
-      <p>🎉 You're on the list. We'll be in touch personally when we launch.</p>
-    </div>
+    <!-- SIGNALS SECTION -->
+    <section class="signals-bg section">
+        <div class="container">
+            <div class="section-header">
+                <h2>The signals every churn tool misses</h2>
+                <p>Product usage data tells you when they are already leaving. EchoPulse tells you when they are thinking about it.</p>
+            </div>
+            <div class="signals-grid">
+                <!-- Card 1 -->
+                <div class="signal-card high">
+                    <div class="signal-header">
+                        <div class="signal-icon">👤</div>
+                        <div class="signal-title">Champion Left</div>
+                    </div>
+                    <div class="signal-content">
+                        "Sarah Chen at Acme Corp just moved to a new company. She was your champion for 14 months."
+                    </div>
+                    <div class="signal-risk">
+                        <span>Risk Score</span>
+                        <div><span class="risk-badge risk-high">HIGH</span> • 85/100</div>
+                    </div>
+                </div>
+                <!-- Card 2 -->
+                <div class="signal-card medium">
+                    <div class="signal-header">
+                        <div class="signal-icon">📰</div>
+                        <div class="signal-title">Layoff Detected</div>
+                    </div>
+                    <div class="signal-content">
+                        "TechFlow announced 15% staff reduction. Budget reviews are coming."
+                    </div>
+                    <div class="signal-risk">
+                        <span>Risk Score</span>
+                        <div><span class="risk-badge risk-medium">MEDIUM</span> • 70/100</div>
+                    </div>
+                </div>
+                <!-- Card 3 -->
+                <div class="signal-card high">
+                    <div class="signal-header">
+                        <div class="signal-icon">🏢</div>
+                        <div class="signal-title">Acquisition Alert</div>
+                    </div>
+                    <div class="signal-content">
+                        "BuildFast acquired by Microsoft. New owners audit vendor contracts."
+                    </div>
+                    <div class="signal-risk">
+                        <span>Risk Score</span>
+                        <div><span class="risk-badge risk-high">HIGH</span> • 78/100</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <p class="ea-note">No spam. One email when we're ready. Unsubscribe anytime.</p>
-  </div>
-</section>
+    <!-- VS SECTION -->
+    <section class="vs-section">
+        <div class="container">
+            <div class="section-header" style="text-align: center;">
+                <h2>Not another churn tool</h2>
+            </div>
+            <div class="vs-grid">
+                <div class="vs-col vs-col-left">
+                    <h3>Other tools</h3>
+                    <ul class="vs-list">
+                        <li>Watches login frequency</li>
+                        <li>Monitors payment behavior</li>
+                        <li>Sends generic emails</li>
+                        <li>Reacts after cancellation</li>
+                    </ul>
+                </div>
+                <div class="vs-col vs-col-right">
+                    <h3>EchoPulse</h3>
+                    <ul class="vs-list">
+                        <li>Watches the real world</li>
+                        <li>Monitors news and job changes</li>
+                        <li>Sends AI-powered intelligence</li>
+                        <li>Acts before cancellation starts</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<!-- ── FOOTER ── -->
-<footer>
-  <div class="foot-logo">
-    <div class="nav-icon" style="width:30px;height:30px">
-      <svg width="16" height="16" viewBox="0 0 56 56" fill="none">
-        <defs>
-          <linearGradient id="fpg" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#00d4aa" stop-opacity="0"/>
-            <stop offset="50%" stop-color="#00d4aa"/>
-            <stop offset="100%" stop-color="#00d4aa" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <path d="M2 28 L12 28 L16 20 L20 36 L23 16 L26 40 L28 28 L31 28 L34 20 L37 28 L54 28"
-          stroke="url(#fpg)" stroke-width="3" stroke-linecap="round" fill="none"/>
-        <circle cx="28" cy="28" r="3" fill="#00d4aa"/>
-      </svg>
-    </div>
-    <span class="foot-brand">Echo<span>Pulse</span></span>
-  </div>
-  <ul class="foot-links">
-    <li><a href="#problem">Problem</a></li>
-    <li><a href="#calculator">Calculator</a></li>
-    <li><a href="#solution">Solution</a></li>
-    <li><a href="#waitlist">Early Access</a></li>
-    <li><a href="mailto:obinna@echopulse.co">Contact</a></li>
-  </ul>
-  <span class="foot-copy">© 2026 EchoPulse · obinna@echopulse.co</span>
-</footer>
+    <!-- PRICING SECTION -->
+    <section class="pricing section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Simple, transparent pricing</h2>
+                <p>Start saving your customers today with actionable intelligence.</p>
+            </div>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-name">Starter</div>
+                    <div class="pricing-price">$29<span class="pricing-period">/month</span></div>
+                    <div class="pricing-feature">50 contacts monitored</div>
+                    <a href="/onboarding.html" class="btn btn-secondary" style="width: 100%; text-align: center;">Start Free Trial</a>
+                </div>
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <div class="pricing-name">Growth</div>
+                    <div class="pricing-price">$79<span class="pricing-period">/month</span></div>
+                    <div class="pricing-feature">200 contacts monitored</div>
+                    <a href="/onboarding.html" class="btn btn-primary" style="width: 100%; text-align: center;">Start Free Trial</a>
+                </div>
+                <div class="pricing-card">
+                    <div class="pricing-name">Scale</div>
+                    <div class="pricing-price">$199<span class="pricing-period">/month</span></div>
+                    <div class="pricing-feature">1000 contacts monitored</div>
+                    <a href="/onboarding.html" class="btn btn-secondary" style="width: 100%; text-align: center;">Start Free Trial</a>
+                </div>
+            </div>
+            <p class="pricing-note">All plans include a 14 day free trial. No credit card required.</p>
+        </div>
+    </section>
 
-<script>
-function money(n) {
-  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
-  if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
-  return '$' + Math.round(n).toLocaleString();
-}
+    <!-- CTA SECTION -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Stop losing customers you could have saved</h2>
+            <a href="/onboarding.html" class="btn btn-primary" style="margin-top: 20px;">Start monitoring for free</a>
+        </div>
+    </section>
 
-function tick(el, from, to, ms, isMoney) {
-  var t0 = performance.now();
-  (function frame(now) {
-    var p = Math.min((now - t0) / ms, 1);
-    var e = 1 - Math.pow(1 - p, 3);
-    var v = Math.round(from + (to - from) * e);
-    el.textContent = isMoney ? money(v) : v.toLocaleString();
-    if (p < 1) requestAnimationFrame(frame);
-  })(t0);
-}
+    <!-- FOOTER -->
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <div class="logo">EchoPulse</div>
+                <p class="footer-tagline">EchoPulse — Every churn tool watches your product. We watch the world.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">Contact</a></li>
+                        <li><a href="#">Substack</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
 
-function calculate() {
-  var mrr = parseFloat(document.getElementById('mrr').value) || 0;
-  var cr = parseFloat(document.getElementById('churn').value) || 0;
-  var cust = parseInt(document.getElementById('customers').value) || 0;
-
-  if (!mrr || !cr || !cust) {
-    alert('Please fill in all three fields.');
-    return;
-  }
-
-  var mLoss = mrr * cr / 100;
-  var yLoss = mLoss * 12;
-  var atRisk = Math.round(cust * cr / 100);
-  var shadow = Math.round(atRisk * 2.3);
-  var pulse = Math.max(5, Math.min(95, Math.round(100 - cr * 10)));
-
-  var rc, rb, rl, rd, pc, pl, pd;
-
-  if (cr <= 2) {
-    rc='#00d4aa'; rb='rgba(0,212,170,0.08)';
-    rl='🟢 Low Risk — You\'re in great shape';
-    rd='Your churn rate is well below industry average. EchoPulse can help you maintain this and catch early signals before they worsen.';
-    pc='#00d4aa'; pl='Healthy';
-    pd='Your revenue health is strong. Keep monitoring engagement signals to stay here.';
-  } else if (cr <= 5) {
-    rc='#ffb547'; rb='rgba(255,181,71,0.08)';
-    rl='🟡 Moderate Risk — Intervention recommended';
-    rd='You\'re near the industry average but silent churners are already costing you. Early identification could recover 30–40% of this lost revenue.';
-    pc='#ffb547'; pl='Moderate Risk';
-    pd='Proactive outreach to at-risk users could recover significant MRR this month.';
-  } else if (cr <= 8) {
-    rc='#ff5f5f'; rb='rgba(255,95,95,0.08)';
-    rl='🔴 High Risk — Revenue haemorrhage detected';
-    rd='Your churn rate is above industry average. Every month without intervention compounds the loss significantly.';
-    pc='#ff5f5f'; pl='High Risk';
-    pd='You likely have 2–3x more disengaged customers than your churn rate shows. They just haven\'t cancelled yet.';
-  } else {
-    rc='#ff2222'; rb='rgba(255,34,34,0.08)';
-    rl='🚨 Critical — Emergency action needed';
-    rd='At this rate compounding loss will significantly erode your customer base within 12 months without immediate intervention.';
-    pc='#ff2222'; pl='Emergency';
-    pd='This level of churn requires immediate systematic intervention across your entire at-risk segment.';
-  }
-
-  document.getElementById('calc-form').style.display = 'none';
-  var R = document.getElementById('results');
-  R.style.display = 'block';
-
-  var yl = document.getElementById('yloss');
-  yl.className = 'big-loss' + (cr<=2?' safe': cr<=5?' warn':'');
-  tick(yl, 0, yLoss, 1300, true);
-
-  document.getElementById('rsub').textContent =
-    'Based on ' + cr + '% monthly churn · $' + mrr.toLocaleString() + ' MRR · ' + cust.toLocaleString() + ' customers';
-
-  setTimeout(function(){
-    tick(document.getElementById('mm'), 0, mLoss, 800, true);
-    tick(document.getElementById('mar'), 0, atRisk, 800, false);
-    tick(document.getElementById('msh'), 0, shadow, 800, false);
-  }, 350);
-
-  var band = document.getElementById('rband');
-  band.style.background = rb;
-  band.style.borderColor = rc + '55';
-  document.getElementById('rdot').style.background = rc;
-  document.getElementById('rtxt').innerHTML =
-    '<strong style="color:' + rc + '">' + rl + '</strong>' + rd;
-
-  setTimeout(function(){
-    document.getElementById('pscore').textContent = pulse;
-    var tag = document.getElementById('ptag');
-    tag.textContent = pl; tag.style.color = pc;
-    document.getElementById('pdesc').textContent = pd;
-    var bar = document.getElementById('pbar');
-    bar.style.width = pulse + '%';
-    bar.style.background = 'linear-gradient(90deg,' + pc + '66,' + pc + ')';
-  }, 550);
-
-  setTimeout(function(){
-    R.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-}
-
-function resetCalc() {
-  document.getElementById('calc-form').style.display = 'block';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('mrr').value = '';
-  document.getElementById('churn').value = '';
-  document.getElementById('customers').value = '';
-  document.getElementById('calc-form').scrollIntoView({ behavior: 'smooth' });
-}
-
-async function joinWaitlist() {
-  var email = document.getElementById('ea-email').value;
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid email address.');
-    return;
-  }
-  
-  try {
-    var btn = document.querySelector('#ea-form button');
-    btn.textContent = 'Joining...';
-    btn.disabled = true;
-
-    var response = await fetch('https://echopulse-backend.onrender.com/waitlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-
-    document.getElementById('ea-form').style.display = 'none';
-    document.getElementById('ea-success').style.display = 'block';
-  } catch(err) {
-    // Still show success to user even if backend has issue
-    document.getElementById('ea-form').style.display = 'none';
-    document.getElementById('ea-success').style.display = 'block';
-  }
-}
-
-document.addEventListener('keydown', function(e){
-  if (e.key === 'Enter') calculate();
-});
-</script>
 </body>
 </html>
