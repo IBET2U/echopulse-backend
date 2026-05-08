@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { createClient } = require("@supabase/supabase-js");
+const Anthropic = require("@anthropic-ai/sdk");
 const { sendChurnAlert } = require("../mailer");
 
 function sleep(ms) {
@@ -37,10 +38,61 @@ function sevenDaysAgoYyyyMmDd() {
   return d.toISOString().slice(0, 10);
 }
 
+function buildClaudePrompt(companyName, articles) {
+  const articleLines = (articles || [])
+    .map((a) => {
+      const title = a?.title || "Untitled";
+      const source = a?.source?.name || "Unknown source";
+      return `- ${title} (${source})`;
+    })
+    .join("\n");
+
+  return `You are a B2B churn intelligence analyst.
+Analyze these news articles about ${companyName} 
+and determine if any indicate genuine churn risk 
+for a B2B software vendor who has this company 
+as a customer.
+
+Churn-relevant signals are:
+- Layoffs or workforce reductions
+- Acquisition or merger activity  
+- CEO or key executive departures
+- Budget cuts or cost reduction programs
+- Bankruptcy or financial distress
+- Major restructuring
+
+Articles: ${articleLines}
+
+Respond ONLY with valid JSON:
+{
+  churn_relevant: true or false,
+  risk_score: number between 0-100,
+  risk_reason: one sentence explaining the risk,
+  recommended_action: specific action to take,
+  urgency: immediate or this_week or monitor or none
+}`;
+}
+
+function clampRiskScore(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function extractClaudeText(resp) {
+  const content = resp?.content;
+  if (!Array.isArray(content)) return null;
+  const textParts = content
+    .map((c) => (c && typeof c.text === "string" ? c.text : null))
+    .filter(Boolean);
+  return textParts.length ? textParts.join("\n").trim() : null;
+}
+
 async function runNewsMonitor() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
   const newsApiKey = process.env.NEWS_API_KEY;
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!url || !key) {
     throw new Error("Supabase not configured (SUPABASE_URL/SUPABASE_KEY)");
@@ -48,8 +100,12 @@ async function runNewsMonitor() {
   if (!newsApiKey) {
     throw new Error("NEWS_API_KEY is not set");
   }
+  if (!anthropicApiKey) {
+    throw new Error("ANTHROPIC_API_KEY is not set");
+  }
 
   const supabase = createClient(url, key);
+  const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
   const { data: rows, error: fetchError } = await supabase
     .from("monitored_contacts")
@@ -97,30 +153,73 @@ async function runNewsMonitor() {
       if (articles.length === 0) {
         console.log(`[EchoPulse]   No matching articles for "${displayName}".`);
       } else {
-        const signalDescription = formatArticleDescription(articles);
-        const recommendedAction = "Review account immediately";
-        const primary = contacts[0];
+        const prompt = buildClaudePrompt(displayName, articles);
 
-        const { error: insertError } = await supabase.from("churn_signals").insert({
-          contact_id: primary.id,
-          user_id: primary.user_id,
-          stripe_customer_id: primary.stripe_customer_id,
-          company_name: primary.company_name,
-          signal_type: "NEWS_ALERT",
-          risk_score: 70,
-          signal_description: signalDescription,
-          recommended_action: recommendedAction,
-        });
+        let claudeJson = null;
+        try {
+          const msg = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-latest",
+            max_tokens: 400,
+            temperature: 0,
+            messages: [{ role: "user", content: prompt }],
+          });
 
-        if (insertError) {
+          const text = extractClaudeText(msg);
+          claudeJson = text ? JSON.parse(text) : null;
+        } catch (e) {
           console.error(
-            `[EchoPulse]   Failed to insert churn_signal for "${displayName}":`,
-            insertError.message,
+            `[EchoPulse]   Claude analysis failed for "${displayName}":`,
+            e?.message || e,
           );
+          claudeJson = null;
+        }
+
+        const churnRelevant = Boolean(claudeJson?.churn_relevant);
+
+        if (!churnRelevant) {
+          console.log(`[EchoPulse] No churn-relevant news for ${displayName}`);
         } else {
-          console.log(
-            `[EchoPulse]   Inserted NEWS_ALERT (${articles.length} article(s) cited).`,
-          );
+          const primary = contacts[0];
+          const signalDescription = formatArticleDescription(articles);
+          const riskScore = clampRiskScore(claudeJson?.risk_score) ?? 0;
+          const recommendedAction =
+            typeof claudeJson?.recommended_action === "string" &&
+            claudeJson.recommended_action.trim().length
+              ? claudeJson.recommended_action.trim()
+              : "Review account immediately";
+
+          const riskReason =
+            typeof claudeJson?.risk_reason === "string" ? claudeJson.risk_reason.trim() : "";
+          const urgency = typeof claudeJson?.urgency === "string" ? claudeJson.urgency.trim() : "";
+
+          const enrichedDescription =
+            riskReason || urgency
+              ? `${signalDescription} | AI: ${riskReason || "Churn risk detected."}${
+                  urgency ? ` (urgency: ${urgency})` : ""
+                }`
+              : signalDescription;
+
+          const { error: insertError } = await supabase.from("churn_signals").insert({
+            contact_id: primary.id,
+            user_id: primary.user_id,
+            stripe_customer_id: primary.stripe_customer_id,
+            company_name: primary.company_name,
+            signal_type: "NEWS_ALERT",
+            risk_score: riskScore,
+            signal_description: enrichedDescription,
+            recommended_action: recommendedAction,
+          });
+
+          if (insertError) {
+            console.error(
+              `[EchoPulse]   Failed to insert churn_signal for "${displayName}":`,
+              insertError.message,
+            );
+          } else {
+            console.log(
+              `[EchoPulse]   Inserted NEWS_ALERT (${articles.length} article(s) cited).`,
+            );
+          }
         }
       }
     } catch (err) {
