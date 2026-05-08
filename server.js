@@ -184,6 +184,11 @@ async function processChurnSignal(customerId, eventType) {
 }
 // Connect endpoint - founders paste their Stripe restricted key
 app.post('/connect', async (req, res) => {
+  const { createClient } = require('@supabase/supabase-js');
+  const serviceSupabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+  );
   const { stripe_key, founder_name, founder_email } = req.body;
   if (!stripe_key || !stripe_key.startsWith('rk_')) {
     return res.status(400).json({ 
@@ -195,7 +200,7 @@ app.post('/connect', async (req, res) => {
     const stripeClient = Stripe(stripe_key);
     const customers = await stripeClient.customers.list({ limit: 100 });
     const account_id = `acct_${Date.now()}`;
-    await supabase.from('accounts').upsert({
+    await serviceSupabase.from('accounts').upsert({
       account_id, stripe_key,
       webhook_secret: '',
       founder_name: founder_name || 'Founder',
@@ -204,7 +209,7 @@ app.post('/connect', async (req, res) => {
     });
     const defaultUserId = '00000000-0000-0000-0000-000000000000';
     for (const customer of customers.data) {
-      await supabase.from('customers').upsert({
+      await serviceSupabase.from('customers').upsert({
         stripe_customer_id: customer.id,
         account_id,
         email: customer.email || 'Unknown',
@@ -217,7 +222,7 @@ app.post('/connect', async (req, res) => {
       const emailDomain = (customer.email || '').split('@')[1] || null;
       const company_name = customer.name || emailDomain || 'Unknown';
 
-      const { data: existingCompany, error: existsError } = await supabase
+      const { data: existingCompany, error: existsError } = await serviceSupabase
         .from('monitored_contacts')
         .select('id')
         .eq('company_name', company_name)
@@ -229,7 +234,7 @@ app.post('/connect', async (req, res) => {
       }
 
       if (!existingCompany) {
-        const { error: insertContactError } = await supabase
+        const { error: insertContactError } = await serviceSupabase
           .from('monitored_contacts')
           .insert({
             stripe_customer_id: customer.id,
