@@ -493,8 +493,12 @@
             `Connected! Monitoring ${count} customers.\nRedirecting to dashboard...`,
           );
 
+          if (data.success) {
+            localStorage.setItem("echopulse_account_id", data.account_id);
+          }
+
           setTimeout(() => {
-            window.location.href = "/dashboard.html";
+            window.location.href = `/dashboard.html?account_id=${data.account_id}`;
           }, 3000);
         } catch (err) {
           setStatus("error", err?.message || "Network error. Please try again.");

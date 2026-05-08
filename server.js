@@ -265,10 +265,17 @@ app.get('/dashboard', async (req, res) => {
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_KEY
     );
-    const { data: customers, error } = await serviceSupabase
+    const accountId = req.query.account_id;
+    let query = serviceSupabase
       .from('customers')
       .select('*')
       .order('risk_score', { ascending: false });
+
+    if (accountId) {
+      query = query.eq('account_id', accountId);
+    }
+
+    const { data: customers, error } = await query;
     if (error) throw error;
     res.json({
       totalCustomers: customers.length,

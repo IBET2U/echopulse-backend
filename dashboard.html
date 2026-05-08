@@ -529,6 +529,14 @@
   </div>
 
   <script>
+    const params = new URLSearchParams(window.location.search);
+    const accountId = params.get('account_id') ||
+                      localStorage.getItem('echopulse_account_id');
+
+    if (accountId) {
+      localStorage.setItem('echopulse_account_id', accountId);
+    }
+
     const BACKEND = 'https://echopulse-backend.onrender.com';
     const DASHBOARD_URL = `${BACKEND}/dashboard`;
     const SIGNALS_URL = `${BACKEND}/api/intelligence/signals`;
@@ -659,7 +667,7 @@
 
     async function fetchDashboard() {
       try {
-        const res = await fetch(DASHBOARD_URL);
+        const res = await fetch(`${BACKEND}/dashboard?account_id=${accountId}`);
         const raw = await res.json().catch(() => null);
 
         if (!res.ok) {
