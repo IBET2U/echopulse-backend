@@ -131,7 +131,7 @@ async function runNewsMonitor() {
     );
 
     try {
-      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(displayName)}+layoffs+OR+acquisition+OR+restructuring&hl=en-US&gl=US&ceid=US:en`;
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(displayName)}&hl=en-US&gl=US&ceid=US:en`;
       const rssResp = await axios.get(rssUrl, { timeout: 20_000 });
 
       const rssXml = typeof rssResp?.data === "string" ? rssResp.data : "";
@@ -139,7 +139,7 @@ async function runNewsMonitor() {
       const parsedItems = [];
 
       for (const block of itemBlocks) {
-        if (parsedItems.length >= 3) break;
+        if (parsedItems.length >= 5) break;
         const itemXml = block.split("</item>")[0] || "";
 
         const titleStart = itemXml.indexOf("<title>");

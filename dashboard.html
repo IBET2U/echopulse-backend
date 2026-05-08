@@ -666,6 +666,14 @@
     }
 
     async function fetchDashboard() {
+      if (!accountId) {
+        document.getElementById('totalCustomers').textContent = '0';
+        document.getElementById('atRisk').textContent = '0';
+        document.getElementById('shadowChurners').textContent = '0';
+        document.getElementById('customerList').innerHTML =
+          '<div class="empty-state">Connect your Stripe account to start monitoring</div>';
+        return;
+      }
       try {
         const res = await fetch(`${BACKEND}/dashboard?account_id=${accountId}`);
         const raw = await res.json().catch(() => null);
