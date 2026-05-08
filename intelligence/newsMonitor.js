@@ -165,7 +165,13 @@ async function runNewsMonitor() {
           });
 
           const text = extractClaudeText(msg);
-          claudeJson = text ? JSON.parse(text) : null;
+if (text) {
+  const clean = text
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+  claudeJson = JSON.parse(clean);
+}
         } catch (e) {
           console.error(
             `[EchoPulse]   Claude analysis failed for "${displayName}":`,
