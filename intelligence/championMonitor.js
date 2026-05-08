@@ -1,12 +1,13 @@
 const axios = require("axios");
 const { createClient } = require("@supabase/supabase-js");
+const { enrichContact } = require("./contactEnricher");
 
 let _supabaseClient = null;
 function getSupabase() {
   if (_supabaseClient) return _supabaseClient;
 
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) {
     throw new Error("Supabase not configured (SUPABASE_URL/SUPABASE_KEY)");
   }
@@ -27,36 +28,26 @@ function normalizeStr(value) {
 
 async function fetchContactProfile(contactEmail) {
   try {
-    const apiKey = process.env.APOLLO_API_KEY;
-    const email = normalizeStr(contactEmail);
-    if (!apiKey || !email) return null;
+    const apiKey = process.env.PROXYCURL_API_KEY;
+    const linkedinUrl = normalizeStr(contactEmail);
+    if (!apiKey || !linkedinUrl) return null;
 
-    const resp = await axios.post(
-      "https://api.apollo.io/v1/people/search",
-      {
-        q_keywords: email,
-        page: 1,
-        per_page: 1,
+    const resp = await axios.get("https://nubela.co/proxycurl/api/v2/linkedin", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
       },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-          "X-Api-Key": apiKey,
-        },
-        timeout: 20_000,
-        validateStatus: (s) => s >= 200 && s < 300,
+      params: {
+        url: linkedinUrl,
       },
-    );
+      timeout: 25_000,
+      validateStatus: (s) => s >= 200 && s < 300,
+    });
 
-    const people = resp.data?.people;
-    const person = Array.isArray(people) && people.length > 0 ? people[0] : null;
-    if (!person) return null;
+    const exp0 = Array.isArray(resp?.data?.experiences) ? resp.data.experiences[0] : null;
+    const currentCompany = normalizeStr(exp0?.company);
+    const currentTitle = normalizeStr(exp0?.title);
 
-    const currentCompany = normalizeStr(person.organization?.name);
-    const currentTitle = normalizeStr(person.title);
     if (!currentCompany && !currentTitle) return null;
-
     return { currentCompany, currentTitle };
   } catch (_err) {
     return null;
@@ -68,10 +59,10 @@ async function checkChampionStatus(contact) {
     const supabase = getSupabase();
     if (!contact || typeof contact !== "object") return { changed: false, details: "Invalid contact" };
 
-    const contactEmail = normalizeStr(contact.contact_email);
-    if (!contactEmail) return { changed: false, details: "Missing contact_email" };
+    const linkedinUrl = normalizeStr(contact.linkedin_url);
+    if (!linkedinUrl) return { changed: false, details: "Missing linkedin_url" };
 
-    const profile = await fetchContactProfile(contactEmail);
+    const profile = await fetchContactProfile(linkedinUrl);
     if (!profile) return { changed: false, details: "Failed to fetch contact profile" };
 
     const fetchedCompany = profile.currentCompany;
@@ -162,7 +153,7 @@ async function runChampionScan() {
   const { data: contacts, error } = await supabase
     .from("monitored_contacts")
     .select(
-      "id,user_id,stripe_customer_id,company_name,contact_name,contact_email,current_company,current_job_title",
+      "id,user_id,stripe_customer_id,company_name,contact_name,contact_email,linkedin_url,current_company,current_job_title",
     )
     .not("contact_email", "is", null);
 
@@ -176,6 +167,61 @@ async function runChampionScan() {
     const label = `${c.company_name || "Unknown Company"} (${c.id})`;
 
     console.log(`[EchoPulse] [${i + 1}/${total}] Checking ${label}...`);
+
+    if (!normalizeStr(c.linkedin_url)) {
+      const email = normalizeStr(c.contact_email);
+      const fromEmailDomain =
+        email && email.includes("@") ? normalizeStr(email.split("@").pop()) : null;
+
+      let companyDomain = fromEmailDomain;
+      if (!companyDomain) {
+        const company = normalizeStr(c.company_name);
+        if (company) {
+          const base = company
+            .toLowerCase()
+            .replace(/\b(inc|inc\.|llc|ltd|ltd\.|corp|corp\.|co|co\.|company|group|holdings)\b/g, "")
+            .replace(/[^a-z0-9\s-]/g, " ")
+            .trim()
+            .split(/\s+/)[0];
+          companyDomain = base ? `${base}.com` : null;
+        }
+      }
+
+      try {
+        const enriched = await enrichContact(companyDomain, c.company_name);
+        if (enriched) {
+          const updatePayload = {
+            contact_name: enriched.name,
+            contact_email: enriched.email,
+            linkedin_url: enriched.linkedinUrl,
+            current_job_title: enriched.currentTitle,
+            current_company: enriched.currentCompany,
+            updated_at: new Date().toISOString(),
+          };
+
+          const { error: updateError } = await supabase
+            .from("monitored_contacts")
+            .update(updatePayload)
+            .eq("id", c.id);
+
+          if (updateError) {
+            console.error(
+              `[EchoPulse] [${i + 1}/${total}] Failed to update enriched contact for ${label}:`,
+              updateError.message,
+            );
+          } else {
+            c.contact_name = enriched.name;
+            c.contact_email = enriched.email;
+            c.linkedin_url = enriched.linkedinUrl;
+            c.current_job_title = enriched.currentTitle;
+            c.current_company = enriched.currentCompany;
+          }
+        }
+      } catch (_err) {
+        // If enrichment fails, proceed with monitoring using existing data.
+      }
+    }
+
     const result = await checkChampionStatus(c);
 
     if (result.changed) {
