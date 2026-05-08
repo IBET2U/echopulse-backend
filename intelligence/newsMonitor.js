@@ -91,14 +91,10 @@ function extractClaudeText(resp) {
 async function runNewsMonitor() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
-  const newsApiKey = process.env.NEWS_API_KEY;
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!url || !key) {
     throw new Error("Supabase not configured (SUPABASE_URL/SUPABASE_KEY)");
-  }
-  if (!newsApiKey) {
-    throw new Error("NEWS_API_KEY is not set");
   }
   if (!anthropicApiKey) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -135,20 +131,39 @@ async function runNewsMonitor() {
     );
 
     try {
-      const resp = await axios.get("https://newsapi.org/v2/everything", {
-        params: {
-          apiKey: newsApiKey,
-          q: buildNewsQuery(displayName),
-          from: sevenDaysAgoYyyyMmDd(),
-          sortBy: "publishedAt",
-          pageSize: 3,
-          page: 1,
-        },
-        timeout: 20_000,
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(displayName)}+layoffs+OR+acquisition+OR+restructuring&hl=en-US&gl=US&ceid=US:en`;
+      const rssResp = await axios.get(rssUrl, { timeout: 20_000 });
 
-      const articles = Array.isArray(resp.data?.articles) ? resp.data.articles : [];
+      const rssXml = typeof rssResp?.data === "string" ? rssResp.data : "";
+      const itemBlocks = rssXml.split("<item>").slice(1);
+      const parsedItems = [];
+
+      for (const block of itemBlocks) {
+        if (parsedItems.length >= 3) break;
+        const itemXml = block.split("</item>")[0] || "";
+
+        const titleStart = itemXml.indexOf("<title>");
+        const titleEnd = itemXml.indexOf("</title>");
+        let title =
+          titleStart !== -1 && titleEnd !== -1 && titleEnd > titleStart
+            ? itemXml.slice(titleStart + "<title>".length, titleEnd).trim()
+            : "Untitled";
+        title = title.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim() || "Untitled";
+
+        const sourceStart = itemXml.indexOf("<source>");
+        const sourceEnd = itemXml.indexOf("</source>");
+        let sourceName =
+          sourceStart !== -1 && sourceEnd !== -1 && sourceEnd > sourceStart
+            ? itemXml.slice(sourceStart + "<source>".length, sourceEnd).trim()
+            : "Unknown source";
+        sourceName =
+          sourceName.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim() ||
+          "Unknown source";
+
+        parsedItems.push({ title, source: { name: sourceName } });
+      }
+
+      const articles = parsedItems;
 
       if (articles.length === 0) {
         console.log(`[EchoPulse]   No matching articles for "${displayName}".`);
