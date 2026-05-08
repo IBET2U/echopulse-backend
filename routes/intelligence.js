@@ -130,7 +130,7 @@ router.get("/signals", async (req, res) => {
   }
 });
 
-router.post("/scan", strictLimiter, requireAuth, async (_req, res) => {
+router.post("/scan", strictLimiter, async (_req, res) => {
   try {
     await runChampionScan();
     return res.json({ success: true, message: "Champion scan completed" });
