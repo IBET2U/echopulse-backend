@@ -219,9 +219,27 @@ app.post('/connect', async (req, res) => {
         created_at: new Date().toISOString()
       });
 
-      const company_name = customer.name || (customer.email || '').split('@')[1] || 'Unknown';
-      const emailDomain = (customer.email || '').split('@')[1] || '';
-      const business_description = `Company: ${company_name}. Email domain: ${emailDomain}. Stripe customer since: ${customer.created ? new Date(customer.created * 1000).toISOString().split('T')[0] : 'unknown'}.`;
+      const emailDomain = (customer.email || '').split('@')[1] || null;
+
+      // Skip personal email domains
+      const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 
+        'outlook.com', 'icloud.com', 'me.com', 'aol.com'];
+
+      const isPersonalEmail = personalDomains.includes(emailDomain);
+
+      // Use company name from Stripe, or domain if business email, 
+      // or customer ID if nothing else
+      const company_name = customer.name || 
+        (!isPersonalEmail && emailDomain ? emailDomain : null) || 
+        `Customer ${customer.id}`;
+
+      // Skip monitoring personal email customers - no useful signals
+      if (isPersonalEmail && !customer.name) {
+        console.log(`Skipping personal email customer: ${customer.email}`);
+        continue;
+      }
+
+      const business_description = `Company: ${company_name}. Email domain: ${emailDomain || ''}. Stripe customer since: ${customer.created ? new Date(customer.created * 1000).toISOString().split('T')[0] : 'unknown'}.`;
 
       const { data: existingCompany, error: existsError } = await serviceSupabase
         .from('monitored_contacts')
