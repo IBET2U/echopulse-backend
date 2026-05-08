@@ -154,8 +154,7 @@ async function runChampionScan() {
     .from("monitored_contacts")
     .select(
       "id,user_id,stripe_customer_id,company_name,contact_name,contact_email,linkedin_url,current_company,current_job_title",
-    )
-    .not("contact_email", "is", null);
+    );
 
   if (error) throw error;
 
@@ -170,55 +169,108 @@ async function runChampionScan() {
 
     if (!normalizeStr(c.linkedin_url)) {
       const email = normalizeStr(c.contact_email);
-      const fromEmailDomain =
+      const emailDomain =
         email && email.includes("@") ? normalizeStr(email.split("@").pop()) : null;
 
-      let companyDomain = fromEmailDomain;
-      if (!companyDomain) {
-        const company = normalizeStr(c.company_name);
-        if (company) {
-          const base = company
-            .toLowerCase()
-            .replace(/\b(inc|inc\.|llc|ltd|ltd\.|corp|corp\.|co|co\.|company|group|holdings)\b/g, "")
-            .replace(/[^a-z0-9\s-]/g, " ")
-            .trim()
-            .split(/\s+/)[0];
-          companyDomain = base ? `${base}.com` : null;
-        }
+      const company = normalizeStr(c.company_name);
+      let fullCompanyDomain = null;
+      let firstWordDomain = null;
+      if (company) {
+        const slugFull = company
+          .toLowerCase()
+          .replace(/\b(inc|inc\.|llc|ltd|ltd\.|corp|corp\.|co|co\.|company|group|holdings)\b/g, "")
+          .replace(/[^a-z0-9]/g, "")
+          .trim();
+        if (slugFull) fullCompanyDomain = `${slugFull}.com`;
+
+        const firstWord = company
+          .split(/\s+/)[0]
+          ?.toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
+          .trim();
+        if (firstWord) firstWordDomain = `${firstWord}.com`;
       }
 
-      try {
-        const enriched = await enrichContact(companyDomain, c.company_name);
-        if (enriched) {
-          const updatePayload = {
-            contact_name: enriched.name,
-            contact_email: enriched.email,
-            linkedin_url: enriched.linkedinUrl,
-            current_job_title: enriched.currentTitle,
-            current_company: enriched.currentCompany,
-            updated_at: new Date().toISOString(),
-          };
+      const domainCandidates = [];
+      if (emailDomain) domainCandidates.push(emailDomain);
+      if (fullCompanyDomain && fullCompanyDomain !== emailDomain) {
+        domainCandidates.push(fullCompanyDomain);
+      }
+      if (
+        firstWordDomain &&
+        firstWordDomain !== emailDomain &&
+        firstWordDomain !== fullCompanyDomain
+      ) {
+        domainCandidates.push(firstWordDomain);
+      }
 
-          const { error: updateError } = await supabase
-            .from("monitored_contacts")
-            .update(updatePayload)
-            .eq("id", c.id);
+      let enriched = null;
+      let lastDomainTried = null;
 
-          if (updateError) {
-            console.error(
-              `[EchoPulse] [${i + 1}/${total}] Failed to update enriched contact for ${label}:`,
-              updateError.message,
-            );
-          } else {
-            c.contact_name = enriched.name;
-            c.contact_email = enriched.email;
-            c.linkedin_url = enriched.linkedinUrl;
-            c.current_job_title = enriched.currentTitle;
-            c.current_company = enriched.currentCompany;
-          }
+      if (domainCandidates.length === 0) {
+        console.log(
+          `[EchoPulse] [${i + 1}/${total}] PDL enrich: no domain could be derived (no email domain / company name).`,
+        );
+      }
+
+      for (const companyDomain of domainCandidates) {
+        lastDomainTried = companyDomain;
+        console.log(
+          `[EchoPulse] [${i + 1}/${total}] PDL enrich trying domain: ${companyDomain}`,
+        );
+        try {
+          enriched = await enrichContact(companyDomain, c.company_name);
+        } catch (_err) {
+          enriched = null;
         }
-      } catch (_err) {
-        // If enrichment fails, proceed with monitoring using existing data.
+        if (enriched) {
+          console.log(
+            `[EchoPulse] [${i + 1}/${total}] PDL/Hunter enrich returned a result for domain: ${companyDomain}`,
+          );
+          console.log(
+            `[EchoPulse] [${i + 1}/${total}] LinkedIn URL found: ${enriched.linkedinUrl || "(none)"}`,
+          );
+          break;
+        }
+        console.log(
+          `[EchoPulse] [${i + 1}/${total}] PDL/Hunter enrich returned no result for domain: ${companyDomain}`,
+        );
+      }
+
+      if (domainCandidates.length > 0 && !enriched) {
+        console.log(
+          `[EchoPulse] [${i + 1}/${total}] PDL/Hunter enrich: no contact after all domain attempts (last tried: ${lastDomainTried})`,
+        );
+        console.log(`[EchoPulse] [${i + 1}/${total}] LinkedIn URL found: (none)`);
+      }
+
+      if (enriched) {
+        const updatePayload = {
+          contact_name: enriched.name,
+          contact_email: enriched.email,
+          linkedin_url: enriched.linkedinUrl,
+          current_job_title: enriched.currentTitle,
+          current_company: enriched.currentCompany,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: updateError } = await supabase
+          .from("monitored_contacts")
+          .update(updatePayload)
+          .eq("id", c.id);
+
+        if (updateError) {
+          console.error(
+            `[EchoPulse] [${i + 1}/${total}] Failed to update enriched contact for ${label}:`,
+            updateError.message,
+          );
+        } else {
+          c.contact_name = enriched.name;
+          c.contact_email = enriched.email;
+          c.linkedin_url = enriched.linkedinUrl;
+          c.current_job_title = enriched.currentTitle;
+          c.current_company = enriched.currentCompany;
+        }
       }
     }
 

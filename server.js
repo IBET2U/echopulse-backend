@@ -219,8 +219,9 @@ app.post('/connect', async (req, res) => {
         created_at: new Date().toISOString()
       });
 
-      const emailDomain = (customer.email || '').split('@')[1] || null;
-      const company_name = customer.name || emailDomain || 'Unknown';
+      const company_name = customer.name || (customer.email || '').split('@')[1] || 'Unknown';
+      const emailDomain = (customer.email || '').split('@')[1] || '';
+      const business_description = `Company: ${company_name}. Email domain: ${emailDomain}. Stripe customer since: ${customer.created ? new Date(customer.created * 1000).toISOString().split('T')[0] : 'unknown'}.`;
 
       const { data: existingCompany, error: existsError } = await serviceSupabase
         .from('monitored_contacts')
@@ -241,7 +242,9 @@ app.post('/connect', async (req, res) => {
             company_name,
             user_id: defaultUserId,
             linkedin_url: null,
-            contact_name: null
+            contact_name: null,
+            industry: null,
+            business_description: business_description,
           });
 
         if (insertContactError) {

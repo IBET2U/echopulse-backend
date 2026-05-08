@@ -530,8 +530,8 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    const accountId = params.get('account_id') ||
-                      localStorage.getItem('echopulse_account_id');
+    const accountId = params.get('account_id') || 
+                  localStorage.getItem('echopulse_account_id');
 
     if (accountId) {
       localStorage.setItem('echopulse_account_id', accountId);
@@ -686,15 +686,19 @@
           return;
         }
 
-        const { customers, totalCustomers } = normalizeDashboardPayload(raw || {});
+        const data = raw || {};
+        const apiCustomers = Array.isArray(data.customers) ? data.customers : [];
 
-        document.getElementById('totalCustomers').textContent = totalCustomers;
+        document.getElementById('totalCustomers').textContent =
+          typeof data.totalCustomers === 'number' ? data.totalCustomers : 0;
 
-        const atRisk = customers.filter((c) => c.score >= 50).length;
-        const shadowChurners = customers.filter((c) => c.score >= 75).length;
+        const atRisk = apiCustomers.filter((c) => c.score >= 50).length;
+        const shadowChurners = apiCustomers.filter((c) => c.score >= 75).length;
 
         document.getElementById('atRisk').textContent = atRisk;
         document.getElementById('shadowChurners').textContent = shadowChurners;
+
+        const { customers } = normalizeDashboardPayload(data);
 
         const banner = document.getElementById('alertBanner');
         if (shadowChurners > 0) {
