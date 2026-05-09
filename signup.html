@@ -1,269 +1,176 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Create account — EchoPulse</title>
-    <!-- Clerk browser bundle (also loaded via ESM in script below for initialization) -->
-    <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
-    <style>
-      :root {
-        --bg: #0f172a;
-        --card: #1e293b;
-        --primary: #6366f1;
-        --text: #f8fafc;
-        --muted: #94a3b8;
-        --border: rgba(148, 163, 184, 0.22);
-        --shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-
-      body {
-        background: radial-gradient(
-            1000px 600px at 15% 0%,
-            rgba(99, 102, 241, 0.2),
-            transparent 55%
-          ),
-          radial-gradient(
-            800px 500px at 90% 10%,
-            rgba(99, 102, 241, 0.12),
-            transparent 50%
-          ),
-          var(--bg);
-        color: var(--text);
-        font-family:
-          ui-sans-serif,
-          system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          Helvetica,
-          Arial,
-          "Apple Color Emoji",
-          "Segoe UI Emoji";
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-      }
-
-      .page {
-        min-height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px 16px 32px;
-      }
-
-      .shell {
-        width: 100%;
-        max-width: 440px;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 22px;
-        justify-content: center;
-      }
-
-      .logo {
-        width: 44px;
-        height: 44px;
-        border-radius: 14px;
-        background: radial-gradient(
-            16px 16px at 32% 32%,
-            rgba(255, 255, 255, 0.45),
-            rgba(255, 255, 255, 0.08) 58%,
-            transparent 72%
-          ),
-          linear-gradient(135deg, var(--primary), #8b5cf6);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        flex-shrink: 0;
-      }
-
-      .brand h1 {
-        margin: 0;
-        font-size: 1.35rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-      }
-
-      .brand h1 span {
-        color: var(--muted);
-        font-weight: 600;
-      }
-
-      .card {
-        background: linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.06),
-            rgba(255, 255, 255, 0.02)
-          ),
-          var(--card);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: var(--shadow);
-        padding: 28px 22px 26px;
-      }
-
-      @media (min-width: 480px) {
-        .card {
-          padding: 32px 28px 28px;
-        }
-      }
-
-      .card-title {
-        margin: 0 0 6px;
-        font-size: 1.125rem;
-        font-weight: 600;
-        text-align: center;
-      }
-
-      .card-sub {
-        margin: 0 0 22px;
-        font-size: 0.875rem;
-        color: var(--muted);
-        text-align: center;
-      }
-
-      #sign-up {
-        min-height: 200px;
-      }
-
-      #sign-up:empty::after {
-        content: "Loading sign-up…";
-        display: block;
-        text-align: center;
-        color: var(--muted);
-        font-size: 0.875rem;
-        padding: 2rem 0;
-      }
-
-      .footer {
-        margin-top: 22px;
-        text-align: center;
-        font-size: 0.875rem;
-        color: var(--muted);
-      }
-
-      .footer a {
-        color: var(--primary);
-        font-weight: 600;
-        text-decoration: none;
-      }
-
-      .footer a:hover {
-        text-decoration: underline;
-      }
-
-      .error-banner {
-        display: none;
-        margin-bottom: 16px;
-        padding: 12px 14px;
-        border-radius: 12px;
-        background: rgba(239, 68, 68, 0.12);
-        border: 1px solid rgba(239, 68, 68, 0.35);
-        color: #fecaca;
-        font-size: 0.8125rem;
-        text-align: center;
-      }
-
-      .error-banner.visible {
-        display: block;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="page">
-      <div class="shell">
-        <div class="brand">
-          <div class="logo" aria-hidden="true"></div>
-          <h1>Echo<span>Pulse</span></h1>
-        </div>
-
-        <div class="card">
-          <p class="card-title">Create your account</p>
-          <p class="card-sub">Start monitoring churn risk in minutes</p>
-          <div id="clerk-error" class="error-banner" role="alert"></div>
-          <div id="sign-up"></div>
-        </div>
-
-        <p class="footer">
-          Already have an account?
-          <a href="/signin.html">Sign in</a>
-        </p>
-      </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up — EchoPulse</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f172a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { width: 100%; max-width: 400px; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo h1 { font-size: 28px; font-weight: 700; }
+    .logo span { color: #6366f1; }
+    .logo p { color: #94a3b8; font-size: 14px; margin-top: 8px; }
+    .card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 32px;
+      border: 1px solid #334155;
+    }
+    .card h2 { font-size: 20px; font-weight: 600; margin-bottom: 24px; text-align: center; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+    input:focus { border-color: #6366f1; }
+    .btn {
+      width: 100%;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn:hover { background: #4f46e5; }
+    .btn:disabled { background: #334155; cursor: not-allowed; }
+    .success {
+      background: #052e16;
+      border: 1px solid #22c55e;
+      color: #86efac;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    .error {
+      background: #450a0a;
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .footer a { color: #6366f1; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>Echo<span>Pulse</span></h1>
+      <p>Every churn tool watches your product. We watch the world.</p>
     </div>
+    <div class="card">
+      <h2>Create your account</h2>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="name" placeholder="Obi Martins" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@company.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Min 8 characters" />
+      </div>
+      <button class="btn" id="signupBtn" onclick="signUp()">Create Account</button>
+      <div class="success" id="success"></div>
+      <div class="error" id="error"></div>
+    </div>
+    <div class="footer">
+      Already have an account? <a href="/signin.html">Sign in</a>
+    </div>
+  </div>
 
-    <script type="module">
-      /**
-       * From NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY (replace if your env differs).
-       */
-      const PUBLISHABLE_KEY = "pk_test_ZXRoaWNhbC1jcm93LTExLmNsZXJrLmFjY291bnRzLmRldiQ";
+  <script>
+    const SUPABASE_URL = 'https://hpstvalrvntkztvjzmjs.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwc3R2YWxydm50a3p0dmp6bWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NTk5MDIsImV4cCI6MjA5MTQzNTkwMn0.560NVQ2b22waK8fwHr_BxIcJ1Ef5S6Rz4JOwofmjAug';
+    const { createClient } = supabase;
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      const errorEl = document.getElementById("clerk-error");
+    async function signUp() {
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('signupBtn');
 
-      function showError(msg) {
-        errorEl.textContent = msg;
-        errorEl.classList.add("visible");
+      if (!name || !email || !password) {
+        showError('Please fill in all fields.');
+        return;
+      }
+      if (password.length < 8) {
+        showError('Password must be at least 8 characters.');
+        return;
       }
 
-      try {
-        const { Clerk } = await import(
-          "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/+esm"
-        );
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
 
-        const clerk = new Clerk(PUBLISHABLE_KEY);
-        await clerk.load();
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } }
+      });
 
-        if (clerk.user) {
-          window.location.replace("/dashboard.html");
-        } else {
-          clerk.mountSignUp(document.getElementById("sign-up"), {
-            appearance: {
-              variables: {
-                colorPrimary: "#6366f1",
-                colorBackground: "#1e293b",
-                colorInputBackground: "#0f172a",
-                colorText: "#f8fafc",
-                colorTextSecondary: "#94a3b8",
-                colorNeutral: "#64748b",
-                borderRadius: "12px",
-              },
-              elements: {
-                card: "box-shadow: none;",
-                rootBox: "width: 100%;",
-              },
-            },
-            signInUrl: "/signin.html",
-            routing: "hash",
-          });
-
-          let hadUser = !!clerk.user;
-          clerk.addListener(({ user }) => {
-            if (user && !hadUser) {
-              hadUser = true;
-              window.location.href = "/onboarding.html";
-            }
-            if (!user) hadUser = false;
-          });
-        }
-      } catch (e) {
-        console.error(e);
-        showError(
-          e?.message ||
-            "Could not load sign-up. Check your publishable key and try again."
-        );
+      if (error) {
+        showError(error.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+        return;
       }
-    </script>
-  </body>
+
+      localStorage.setItem('echopulse_user_id', data.user.id);
+      showSuccess('Account created! Redirecting...');
+      setTimeout(() => {
+        window.location.href = '/onboarding.html';
+      }, 1500);
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('success').style.display = 'none';
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('success');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('error').style.display = 'none';
+    }
+  </script>
+</body>
 </html>

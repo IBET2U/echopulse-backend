@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EchoPulse — Onboarding</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
     <style>
       :root {
@@ -323,6 +324,9 @@
   </head>
   <body>
     <main class="page" id="onboardingMain" hidden>
+      <div class="onboarding-bar">
+        <button type="button" id="logoutBtn">Log out</button>
+      </div>
       <div class="container">
         <section class="card left" aria-label="How EchoPulse works">
           <div class="brand">
@@ -427,7 +431,18 @@
     </main>
 
     <script type="module">
-      const PUBLISHABLE_KEY = "pk_test_ZXRoaWNhbC1jcm93LTExLmNsZXJrLmFjY291bnRzLmRldiQ";
+      const SUPABASE_URL = "https://hpstvalrvntkztvjzmjs.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwc3R2YWxydm50a3p0dmp6bWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NTk5MDIsImV4cCI6MjA5MTQzNTkwMn0.560NVQ2b22waK8fwHr_BxIcJ1Ef5S6Rz4JOwofmjAug";
+      const { createClient } = globalThis.supabase;
+      const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const { data: supabaseAuth } = await authClient.auth.getSession();
+      if (!supabaseAuth?.session) {
+        window.location.href = "/signin.html";
+      } else {
+
+      const PUBLISHABLE_KEY = "pk_live_Y2xlcmsuZWNob3B1bHNlLmNvJAZXRoaWNhbC1jcm93LTExLmNsZXJrLmFjY291bnRzLmRldiQ";
 
       const { Clerk } = await import(
         "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/+esm"
@@ -521,6 +536,15 @@
             setLoading(false);
           }
         });
+
+        async function logout() {
+          await authClient.auth.signOut();
+          localStorage.clear();
+          window.location.href = "/signin.html";
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", logout);
+      }
       }
     </script>
   </body>
