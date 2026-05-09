@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EchoPulse — Shadow Churn Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -430,9 +431,12 @@
       <div class="logo-dot"></div>
       <h1>Echo<span>Pulse</span></h1>
     </div>
-    <div style="display:flex;align-items:center;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <button onclick="toggleSettings()" style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;font-family:'Space Mono',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;letter-spacing:1px">
         ⚙ CONNECT STRIPE
+      </button>
+      <button type="button" id="logoutBtn" style="background:rgba(255,59,92,0.08);border:1px solid rgba(255,59,92,0.35);color:#ff3b5c;font-family:'Space Mono',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;letter-spacing:1px">
+        LOG OUT
       </button>
       <div class="last-updated" id="lastUpdated">Loading…</div>
     </div>
@@ -528,7 +532,18 @@
     <div class="refresh-progress"></div>
   </div>
 
-  <script>
+  <script type="module">
+    const PUBLISHABLE_KEY = "pk_test_ZXRoaWNhbC1jcm93LTExLmNsZXJrLmFjY291bnRzLmRldiQ";
+
+    const { Clerk } = await import(
+      "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/+esm"
+    );
+    const clerk = new Clerk(PUBLISHABLE_KEY);
+    await clerk.load();
+    if (!clerk.user) {
+      window.location.href = "/signin.html";
+    } else {
+
     const params = new URLSearchParams(window.location.search);
     const accountId = params.get('account_id') || 
                   localStorage.getItem('echopulse_account_id');
@@ -911,6 +926,17 @@
           btn.disabled = false;
         }, 3000);
       }
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await clerk.signOut();
+      window.location.href = "/signin.html";
+    });
+
+    window.toggleSettings = toggleSettings;
+    window.saveStripeKey = saveStripeKey;
+    window.sendAlert = sendAlert;
+
     }
   </script>
 </body>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EchoPulse — Onboarding</title>
+    <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
     <style>
       :root {
         --bg: #0f172a;
@@ -321,7 +322,7 @@
     </style>
   </head>
   <body>
-    <main class="page">
+    <main class="page" id="onboardingMain" hidden>
       <div class="container">
         <section class="card left" aria-label="How EchoPulse works">
           <div class="brand">
@@ -425,86 +426,102 @@
       </div>
     </main>
 
-    <script>
-      const ENDPOINT = "https://echopulse-backend.onrender.com/connect";
+    <script type="module">
+      const PUBLISHABLE_KEY = "pk_test_ZXRoaWNhbC1jcm93LTExLmNsZXJrLmFjY291bnRzLmRldiQ";
 
-      const form = document.getElementById("connectForm");
-      const submitBtn = document.getElementById("submitBtn");
-      const statusEl = document.getElementById("status");
+      const { Clerk } = await import(
+        "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/+esm"
+      );
+      const clerk = new Clerk(PUBLISHABLE_KEY);
+      await clerk.load();
+      if (!clerk.user) {
+        window.location.href = "/signin.html";
+      } else {
+        document.getElementById("onboardingMain").removeAttribute("hidden");
 
-      function setStatus(type, message) {
-        statusEl.className = "status";
-        if (type === "error") statusEl.classList.add("status--error");
-        if (type === "success") statusEl.classList.add("status--success");
-        statusEl.textContent = message;
-        statusEl.style.display = "block";
-      }
+        const ENDPOINT = "https://echopulse-backend.onrender.com/connect";
 
-      function clearStatus() {
-        statusEl.textContent = "";
-        statusEl.style.display = "none";
-        statusEl.className = "status";
-      }
+        const form = document.getElementById("connectForm");
+        const submitBtn = document.getElementById("submitBtn");
+        const statusEl = document.getElementById("status");
 
-      function setLoading(isLoading) {
-        submitBtn.disabled = isLoading;
-        submitBtn.textContent = isLoading ? "Connecting..." : "Connect Stripe";
-      }
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        clearStatus();
-
-        const founder_name = document.getElementById("founderName").value.trim();
-        const founder_email = document.getElementById("founderEmail").value.trim();
-        const stripe_key = document.getElementById("stripeKey").value.trim();
-
-        if (!founder_name || !founder_email || !stripe_key) {
-          setStatus("error", "Please fill out all fields.");
-          return;
+        function setStatus(type, message) {
+          statusEl.className = "status";
+          if (type === "error") statusEl.classList.add("status--error");
+          if (type === "success") statusEl.classList.add("status--success");
+          statusEl.textContent = message;
+          statusEl.style.display = "block";
         }
 
-        setLoading(true);
+        function clearStatus() {
+          statusEl.textContent = "";
+          statusEl.style.display = "none";
+          statusEl.className = "status";
+        }
 
-        try {
-          const resp = await fetch(ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stripe_key, founder_name, founder_email }),
-          });
+        function setLoading(isLoading) {
+          submitBtn.disabled = isLoading;
+          submitBtn.textContent = isLoading ? "Connecting..." : "Connect Stripe";
+        }
 
-          let data = null;
-          try {
-            data = await resp.json();
-          } catch (_) {
-            data = null;
-          }
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          clearStatus();
 
-          if (!resp.ok) {
-            const msg = data?.error || `Connection failed (HTTP ${resp.status}).`;
-            setStatus("error", msg);
-            setLoading(false);
+          const founder_name = document.getElementById("founderName").value.trim();
+          const founder_email = document.getElementById("founderEmail").value.trim();
+          const stripe_key = document.getElementById("stripeKey").value.trim();
+
+          if (!founder_name || !founder_email || !stripe_key) {
+            setStatus("error", "Please fill out all fields.");
             return;
           }
 
-          const count = data?.customers_imported ?? 0;
-          setStatus(
-            "success",
-            `Connected! Monitoring ${count} customers.\nRedirecting to dashboard...`,
-          );
+          setLoading(true);
 
-          if (data.success) {
-            localStorage.setItem("echopulse_account_id", data.account_id);
+          try {
+            const resp = await fetch(ENDPOINT, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stripe_key, founder_name, founder_email }),
+            });
+
+            let data = null;
+            try {
+              data = await resp.json();
+            } catch (_) {
+              data = null;
+            }
+
+            if (!resp.ok) {
+              const msg = data?.error || `Connection failed (HTTP ${resp.status}).`;
+              setStatus("error", msg);
+              setLoading(false);
+              return;
+            }
+
+            const count = data?.customers_imported ?? 0;
+            setStatus(
+              "success",
+              `Connected! Monitoring ${count} customers.\nRedirecting to dashboard...`,
+            );
+
+            if (data.success) {
+              localStorage.setItem("echopulse_account_id", data.account_id);
+              if (clerk.user?.id) {
+                localStorage.setItem("clerk_user_id", clerk.user.id);
+              }
+            }
+
+            setTimeout(() => {
+              window.location.href = `/dashboard.html?account_id=${data.account_id}`;
+            }, 3000);
+          } catch (err) {
+            setStatus("error", err?.message || "Network error. Please try again.");
+            setLoading(false);
           }
-
-          setTimeout(() => {
-            window.location.href = `/dashboard.html?account_id=${data.account_id}`;
-          }, 3000);
-        } catch (err) {
-          setStatus("error", err?.message || "Network error. Please try again.");
-          setLoading(false);
-        }
-      });
+        });
+      }
     </script>
   </body>
 </html>
