@@ -601,7 +601,7 @@ function minuteBucketUtc(iso) {
  */
 app.post('/echoassist-heartbeat', async (req, res) => {
   try {
-    const supabase = getSupabase();
+    
     if (!supabase) {
       return res.json({ success: true, skipped: 'supabase' });
     }
@@ -691,7 +691,7 @@ app.post('/supervisor-data', async (req, res) => {
     if (!validSupervisorKey(supervisorKey)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const supabase = getSupabase();
+    
     if (!supabase) {
       return res.json({
         agents: [],
@@ -831,7 +831,7 @@ app.post('/echoassist-supervisor-checkin', async (req, res) => {
     if (!RESEND_API_KEY || !RESEND_FROM) {
       return res.status(500).json({ success: false, error: 'Resend not configured' });
     }
-    const supabase = getSupabase();
+    
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Supabase not configured' });
     }
