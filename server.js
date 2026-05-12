@@ -226,6 +226,7 @@ app.post('/connect', async (req, res) => {
         signals: [],
         created_at: new Date().toISOString()
       });
+      if (chErr) console.error('[call_history insert]', chErr.message);
 
       const emailDomain = (customer.email || '').split('@')[1] || null;
 
@@ -511,7 +512,7 @@ Generate a structured call summary. Respond ONLY with valid JSON — no markdown
     if (req.body.hostileCall) flags.push('hostile');
 
     if (supabase) {
-      await supabase.from('call_history').insert({
+      const { error: chErr } = await supabase.from('call_history').insert({
         agent_id: agentId,
         agent_name: agentName,
         duration_seconds: req.body.callDurationSeconds || 0,
