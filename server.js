@@ -3,6 +3,10 @@ const path = require('path');
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
+const SUPERVISOR_FALLBACK_EMAIL = process.env.SUPERVISOR_FALLBACK_EMAIL || '';
 const { generateChurnAssessment } = require('./claude');
 const { sendChurnAlert } = require('./mailer');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -498,6 +502,38 @@ Generate a structured call summary. Respond ONLY with valid JSON — no markdown
     const text = message.content[0].text;
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
+    // Log call to history
+    const agentId = req.body.agentId || 'unknown';
+    const agentName = req.body.agentName || 'unknown';
+    const flags = [];
+    if (parsed.compliance_flags && parsed.compliance_flags.length > 0) flags.push('compliance');
+    if (req.body.agentLoadLevel === 'HIGH') flags.push('high_load');
+    if (req.body.hostileCall) flags.push('hostile');
+
+    if (supabase) {
+      await supabase.from('call_history').insert({
+        agent_id: agentId,
+        agent_name: agentName,
+        duration_seconds: req.body.callDurationSeconds || 0,
+        qa_score: parsed.rep_performance_score || 0,
+        rep_score: parsed.rep_performance_score || 0,
+        churn_risk: parsed.churn_risk || 'low',
+        outcome: parsed.outcome || '',
+        flags: flags,
+        created_at: new Date().toISOString()
+      });
+
+      // Mark agent as available after call ends
+      await supabase.from('echoassist_users').upsert({
+        rep_id: agentId,
+        agent_name: agentName,
+        is_on_call: false,
+        status: 'available',
+        last_seen: new Date().toISOString(),
+        call_started_at: null
+      }, { onConflict: 'rep_id' });
+    }
+
     res.json({ success: true, ...parsed });
 
   } catch (err) {
