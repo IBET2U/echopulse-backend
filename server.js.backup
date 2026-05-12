@@ -1,11 +1,18 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const { generateChurnAssessment } = require('./claude');
 const { sendChurnAlert } = require('./mailer');
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const cors = require('cors');
+const { apiLimiter } = require('./middleware/rateLimiter');
+const { startScheduler } = require('./intelligence/scheduler');
+const intelligenceRoutes = require('./routes/intelligence');
 const app = express();
+app.set('trust proxy', 1);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -14,6 +21,8 @@ const supabase = createClient(
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(cors());
+app.use('/api/', apiLimiter);
+app.use('/api/intelligence', intelligenceRoutes);
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
 });app.post('/waitlist', async (req, res) => {
@@ -175,109 +184,326 @@ async function processChurnSignal(customerId, eventType) {
 }
 // Connect endpoint - founders paste their Stripe restricted key
 app.post('/connect', async (req, res) => {
+  const { createClient } = require('@supabase/supabase-js');
+  const serviceSupabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+  );
   const { stripe_key, founder_name, founder_email } = req.body;
-
   if (!stripe_key || !stripe_key.startsWith('rk_')) {
     return res.status(400).json({ 
       error: 'Invalid key. Must be a restricted key starting with rk_' 
     });
   }
-
   try {
-    // Validate key by calling Stripe
     const Stripe = require('stripe');
     const stripeClient = Stripe(stripe_key);
-    
-    // Pull their customers immediately
     const customers = await stripeClient.customers.list({ limit: 100 });
     const account_id = `acct_${Date.now()}`;
-
-    // Register webhook on their account
-    const webhook = await stripeClient.webhookEndpoints.create({
-      url: 'https://echopulse-backend.onrender.com/webhook',
-      enabled_events: [
-        'customer.subscription.deleted',
-        'customer.subscription.updated', 
-        'customer.updated',
-        'invoice.payment_failed',
-        'payment_method.detached',
-        'customer.discount.created'
-      ],
-    });
-
-    // Store account in Supabase
-    await supabase.from('accounts').upsert({
-      account_id: account_id,
-      stripe_key: stripe_key,
-      webhook_secret: webhook.secret,
+    await serviceSupabase.from('accounts').upsert({
+      account_id, stripe_key,
+      webhook_secret: '',
       founder_name: founder_name || 'Founder',
-      founder_email: founder_email,
+      founder_email,
       connected_at: new Date().toISOString()
     });
-
-    // Immediately score their existing customers
+    const defaultUserId = '00000000-0000-0000-0000-000000000000';
     for (const customer of customers.data) {
-      await supabase.from('customers').upsert({
+      await serviceSupabase.from('customers').upsert({
         stripe_customer_id: customer.id,
-        account_id: account_id,
+        account_id,
         email: customer.email || 'Unknown',
         risk_level: 'green',
         risk_score: 0,
         signals: [],
         created_at: new Date().toISOString()
       });
+
+      const emailDomain = (customer.email || '').split('@')[1] || null;
+
+      // Skip personal email domains
+      const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 
+        'outlook.com', 'icloud.com', 'me.com', 'aol.com'];
+
+      const isPersonalEmail = personalDomains.includes(emailDomain);
+
+      // Use company name from Stripe, or domain if business email, 
+      // or customer ID if nothing else
+      const company_name = customer.name || 
+        (!isPersonalEmail && emailDomain ? emailDomain : null) || 
+        `Customer ${customer.id}`;
+
+      // Skip monitoring personal email customers - no useful signals
+      if (isPersonalEmail && !customer.name) {
+        console.log(`Skipping personal email customer: ${customer.email}`);
+        continue;
+      }
+
+      const business_description = `Company: ${company_name}. Email domain: ${emailDomain || ''}. Stripe customer since: ${customer.created ? new Date(customer.created * 1000).toISOString().split('T')[0] : 'unknown'}.`;
+
+      const { data: existingCompany, error: existsError } = await serviceSupabase
+        .from('monitored_contacts')
+        .select('id')
+        .eq('company_name', company_name)
+        .maybeSingle();
+
+      if (existsError) {
+        console.error('monitored_contacts lookup error:', existsError.message);
+        continue;
+      }
+
+      if (!existingCompany) {
+        const { error: insertContactError } = await serviceSupabase
+          .from('monitored_contacts')
+          .insert({
+            stripe_customer_id: customer.id,
+            company_name,
+            user_id: defaultUserId,
+            linkedin_url: null,
+            contact_name: null,
+            industry: null,
+            business_description: business_description,
+          });
+
+        if (insertContactError) {
+          console.error('monitored_contacts insert error:', insertContactError.message);
+        }
+      }
     }
-
-    console.log(`New account connected: ${founder_email} with ${customers.data.length} customers`);
-
     res.json({ 
       success: true,
-      account_id: account_id,
+      account_id,
       customers_imported: customers.data.length,
       message: `Connected. Monitoring ${customers.data.length} customers.`
     });
-
   } catch(err) {
     console.error('Connect error:', err.message);
     res.status(400).json({ 
       error: err.message || 'Connection failed. Check your API key.'
     });
   }
-  app.get('/dashboard', async (req, res) => {
+});
+
+app.get('/dashboard', async (req, res) => {
   try {
     const { createClient } = require('@supabase/supabase-js');
-    const supabase = createClient(
+    const serviceSupabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY
+      process.env.SUPABASE_SERVICE_KEY
     );
-
-    const { data: customers, error } = await supabase
+    const accountId = req.query.account_id;
+    let query = serviceSupabase
       .from('customers')
       .select('*')
       .order('risk_score', { ascending: false });
 
+    if (accountId) {
+      query = query.eq('account_id', accountId);
+    }
+
+    const { data: customers, error } = await query;
     if (error) throw error;
-
-    const redCount = customers.filter(c => c.risk_level === 'Red').length;
-
     res.json({
       totalCustomers: customers.length,
       customers: customers.map(c => ({
         customerId: c.stripe_customer_id || c.id,
         customerEmail: c.email || 'Unknown',
-        score: c.score || c.risk_score || 0,
-        riskLevel: { label: c.risk_level || 'Green' },
+        score: c.risk_score || 0,
+        riskLevel: { label: c.risk_level || 'green' },
         signals: c.signals || []
       }))
     });
-
   } catch (err) {
-    console.error('/dashboard error:', err);
+    console.error('/dashboard error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+app.post('/assess', async (req, res) => {
+  try {
+    const { stripe_customer_id, risk_level, risk_score } = req.body;
+    const { data: customers } = await supabase
+      .from('customers').select('*')
+      .eq('stripe_customer_id', stripe_customer_id).limit(1);
+    const customer = customers?.[0] || { 
+      stripe_customer_id, risk_level, risk_score, signals: [] 
+    };
+    const assessment = await generateChurnAssessment(customer);
+    res.json(assessment);
+  } catch(err) {
+    console.error('/assess error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
+app.post('/assess', async (req, res) => {
+  try {
+    const { stripe_customer_id, risk_level, risk_score } = req.body;
+    const { data: customers } = await supabase
+      .from('customers').select('*')
+      .eq('stripe_customer_id', stripe_customer_id).limit(1);
+    const customer = customers?.[0] || { stripe_customer_id, risk_level, risk_score, signals: [] };
+    const assessment = await generateChurnAssessment(customer);
+    res.json(assessment);
+  } catch(err) {
+    console.error('/assess error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post('/echoassist', async (req, res) => {
+  try {
+    const { transcript, language } = req.body;
+    if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
+
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: `You are an elite customer service AI coach with 15 years of experience training CSR teams at top BPO call centers. You think like a senior QA manager who understands real call dynamics, not just scripts.
+
+TRANSCRIPT FORMAT:
+- AGENT: lines = the rep speaking
+- CALLER: lines = the customer speaking
+- Analyze each separately. Never confuse them.
+
+CHURN RISK INTELLIGENCE — think carefully before assigning risk:
+- 'high' churn risk = caller is emotionally frustrated, has an unresolved billing issue, feels ignored, or has threatened to leave multiple times
+- 'medium' churn risk = caller is mildly dissatisfied but open to solutions
+- 'low' churn risk = caller has a simple fixable issue, is calm, or is canceling for reasons completely outside the company's control
+- CRITICAL: If a caller is canceling because they are moving out of the country, relocating, deceased account holder, military deployment, or any reason beyond the company's control — this is LOW churn risk, not high. Do not flag these as retention opportunities. Instead suggest a graceful professional closing.
+- CRITICAL: If a caller is canceling because of a competitor, price, or service issue — this IS high churn risk and needs retention action.
+
+CHURN REASON — be specific. Never leave this blank if churn_risk is medium or high. Examples: 'moving abroad', 'found cheaper competitor', 'unhappy with service speed', 'billing dispute unresolved', 'never used the service'.
+
+RETENTION ACTION — only suggest retention actions that are actually possible:
+- If canceling due to relocation abroad: 'Acknowledge situation, offer account pause or transfer if available, close gracefully'
+- If canceling due to price: 'Offer loyalty discount, escalate to retention team, present current promotions'
+- If canceling due to service issue: 'Acknowledge the specific issue, escalate if needed, offer service credit'
+- NEVER suggest finding coverage in another country if no such product exists
+- NEVER suggest impossible retention actions
+
+SUGGESTED RESPONSE RULES — this is the most important field:
+- Read the scorecardState object carefully. NEVER ask for anything already marked true.
+- Read the LAST CALLER: line. Respond directly and specifically to what they just said.
+- If the caller gave a reason for calling, acknowledge that reason by name before doing anything else
+- Sound like a real experienced human CSR, not a robot reading a script
+- Keep responses under 2 sentences when possible
+- Never start with 'Certainly!' or 'Absolutely!' — these sound fake
+- If verification is incomplete, ask for ONE thing at a time in this order: full name → date of birth → SSN (last 4 only) → address → phone → email
+- If all verification is done, focus 100% on solving the caller's actual problem
+- If the caller is emotional or upset, lead with empathy before any verification
+
+QA SCORECARD RULES — be generous but accurate:
+- greeting_completed: true if AGENT said any form of hello, thank you for calling, or welcome
+- caller_full_name_verified: true if CALLER stated their name OR AGENT asked and CALLER confirmed
+- date_of_birth_verified: true if CALLER said any date that sounds like a birthdate
+- ssn_verified: true if CALLER provided any digits described as SSN or social security
+- address_verified: true if CALLER mentioned any street, city, zip, or address
+- phone_number_verified: true if CALLER provided any phone number OR AGENT confirmed the number on file
+- email_verified: true if CALLER provided any email address
+- required_script_disclosure_read: true if AGENT read any policy, terms, disclosure, or legal statement
+- closing_script_completed: true if AGENT said any form of goodbye, thank you for calling, have a good day
+
+REP SCORE — always return a number 0-100. Never return null or skip this field:
+- Start at 100 and deduct points:
+- Deduct 15 if agent asked for information already provided by the caller
+- Deduct 10 if agent ignored the caller's stated reason for calling
+- Deduct 10 if agent gave an impossible or irrelevant suggestion
+- Deduct 10 if agent skipped verification steps
+- Deduct 5 for each missed QA scorecard item that should have been completed by this point in the call
+- Add 10 if agent showed empathy when caller was upset
+- Add 10 if agent offered a specific relevant solution
+- Minimum score is 0, maximum is 100
+
+COACHING TIP — be specific and actionable. Reference exactly what happened in the transcript. Never give generic advice like 'be professional'. Example: 'The caller mentioned moving abroad — this is not a retention situation. Acknowledge their move, wish them well, and offer a clean account closure.'
+
+ALERT — only fire an alert if something genuinely urgent is happening: caller is threatening to escalate, caller is extremely angry, caller mentioned legal action, or caller has been on hold too long. Do not alert for normal cancellation requests.
+
+SENTIMENT — choose from: positive, neutral, frustrated, angry, sad, confused
+
+Return ONLY a valid JSON object with these exact fields:
+{
+  alert: string or null,
+  translation: string or null,
+  churn_risk: 'low' | 'medium' | 'high',
+  churn_reason: string,
+  retention_action: string,
+  sentiment: string,
+  suggested_response: string,
+  suggested_response_spanish: string,
+  coaching_tip: string,
+  rep_score: number,
+  qa_scorecard: {
+    greeting_completed: boolean,
+    caller_full_name_verified: boolean,
+    date_of_birth_verified: boolean,
+    ssn_verified: boolean,
+    address_verified: boolean,
+    phone_number_verified: boolean,
+    email_verified: boolean,
+    required_script_disclosure_read: boolean,
+    closing_script_completed: boolean
+  }
+}
+
+Transcript and context (may include AGENT:/CALLER: lines and scorecardState as JSON):
+"${transcript}"
+
+${language && language !== 'en' ? `The customer appears to be speaking ${language}. Translate what they said to English first.` : ''}`
+      }]
+    });
+
+    const text = message.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    res.json({ success: true, ...parsed });
+
+  } catch (err) {
+    console.error('/echoassist error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post('/echoassist-summary', async (req, res) => {
+  try {
+    const { transcript } = req.body;
+    if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
+
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `You are EchoAssist. A customer service call just ended. Here is the full transcript:
+
+"${transcript}"
+
+Generate a structured call summary. Respond ONLY with valid JSON — no markdown, no explanation:
+{
+  "reason_for_call": "One sentence describing why the customer called",
+  "customer_sentiment": "positive or neutral or frustrated or angry",
+  "churn_risk": "high or medium or low",
+  "key_points": ["point 1", "point 2", "point 3"],
+  "outcome": "One sentence describing what was resolved or decided",
+  "next_steps": ["step 1", "step 2"],
+  "compliance_flags": ["flag 1"] or [],
+  "rep_performance_score": 85,
+  "rep_performance_note": "One sentence coaching note for the rep"
+}`
+      }]
+    });
+
+    const text = message.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    res.json({ success: true, ...parsed });
+
+  } catch (err) {
+    console.error('/echoassist-summary error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
+startScheduler();
 app.listen(PORT, () => {
   console.log(`EchoPulse server running on port ${PORT}`);
 });
