@@ -4,6 +4,7 @@ const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 
+const { Resend } = require('resend');
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
 const SUPERVISOR_FALLBACK_EMAIL = process.env.SUPERVISOR_FALLBACK_EMAIL || '';
@@ -38,8 +39,7 @@ app.get('/', (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email required' });
 
   try {
-    const { Resend } = require('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(RESEND_API_KEY);
     
     await resend.emails.send({
       from: 'EchoPulse <onboarding@resend.dev>',
