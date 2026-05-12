@@ -911,6 +911,42 @@ app.post('/echoassist-supervisor-checkin', async (req, res) => {
 
 
 
+
+// POST /echoassist-nudge — supervisor sends nudge to agent
+app.post('/echoassist-nudge', async (req, res) => {
+  try {
+    const { supervisorKey, agentId, message } = req.body || {};
+    if (supervisorKey !== SUPERVISOR_KEY) return res.status(401).json({ error: 'Unauthorized' });
+    const { error } = await supabase.from('agent_nudges').insert({ agent_id: agentId, message, read: false });
+    if (error) throw new Error(error.message);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET /echoassist-nudge/:agentId — agent polls for nudges
+app.get('/echoassist-nudge/:agentId', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { data, error } = await supabase
+      .from('agent_nudges')
+      .select('*')
+      .eq('agent_id', agentId)
+      .eq('read', false)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    const nudges = data || [];
+    if (nudges.length > 0) {
+      const ids = nudges.map(n => n.id);
+      await supabase.from('agent_nudges').update({ read: true }).in('id', ids);
+    }
+    res.json({ nudges });
+  } catch (e) {
+    res.status(500).json({ nudges: [], error: e.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`EchoPulse server running on port ${PORT}`);
 });
