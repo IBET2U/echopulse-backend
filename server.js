@@ -868,7 +868,6 @@ app.post('/echoassist-supervisor-checkin', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
 
 
 app.listen(PORT, () => {
