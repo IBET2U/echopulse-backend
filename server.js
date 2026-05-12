@@ -23,6 +23,10 @@ app.use(express.json());
 app.use(cors());
 app.use('/api/', apiLimiter);
 app.use('/api/intelligence', intelligenceRoutes);
+
+const SUPERVISOR_KEY = 'echopulse-supervisor-2026';
+const validSupervisorKey = (k) => k === SUPERVISOR_KEY;
+
 app.get('/', (req, res) => {
   res.send('EchoPulse is alive');
 });app.post('/waitlist', async (req, res) => {
