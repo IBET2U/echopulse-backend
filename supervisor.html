@@ -1,0 +1,912 @@
+<!--
+  Run in Supabase SQL editor (after existing echoassist_users / supervisor_alerts):
+
+  CREATE TABLE call_history (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    agent_id text,
+    agent_name text,
+    duration_seconds integer,
+    qa_score integer,
+    rep_score integer,
+    churn_risk text,
+    outcome text,
+    flags text[],
+    created_at timestamptz DEFAULT now()
+  );
+
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS agent_name text;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS agent_email text;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS last_seen timestamptz;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS last_status text;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS agent_load_level text;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS qa_score_current integer;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS call_streak integer;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS is_on_call boolean DEFAULT false;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS echo_shield_active boolean DEFAULT false;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS recovery_mode boolean DEFAULT false;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS high_load_timestamps jsonb DEFAULT '[]'::jsonb;
+  ALTER TABLE echoassist_users ADD COLUMN IF NOT EXISTS call_started_at timestamptz;
+
+  ALTER TABLE supervisor_alerts ADD COLUMN IF NOT EXISTS alert_type text;
+  ALTER TABLE supervisor_alerts ADD COLUMN IF NOT EXISTS message text;
+  ALTER TABLE supervisor_alerts ADD COLUMN IF NOT EXISTS agent_name text;
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EchoAssist — Supervisor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1623;
+      --text: #f4f6fb;
+      --muted: #8b96ab;
+      --accent: #6c63ff;
+      --card: #151d2e;
+      --border: rgba(255, 255, 255, 0.08);
+      --green: #3ecf8e;
+      --red: #ff5c5c;
+      --blue: #4da3ff;
+      --orange: #ff9f43;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Lock screen */
+    #lock-screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: radial-gradient(ellipse at 50% 0%, rgba(108, 99, 255, 0.18), transparent 55%), var(--bg);
+    }
+    #lock-screen.active { display: flex; }
+    .logo-lock { margin-bottom: 2rem; }
+    .lock-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: min(360px, 100%);
+    }
+    .lock-form input {
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .lock-form input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .lock-form button {
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .lock-form button:hover { opacity: 0.92; transform: translateY(-1px); }
+    #lock-denied {
+      color: var(--red);
+      font-size: 0.9rem;
+      min-height: 1.25rem;
+      text-align: center;
+    }
+
+    /* Dashboard */
+    #dashboard { display: none; padding: 0 1.25rem 2rem; max-width: 1440px; margin: 0 auto; }
+    #dashboard.active { display: block; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0 1.25rem;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .topbar-title {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+      flex: 1;
+      text-align: center;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.5); }
+      50% { opacity: 0.85; transform: scale(1.15); box-shadow: 0 0 0 8px rgba(62, 207, 142, 0); }
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+    @media (max-width: 900px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .stats { grid-template-columns: 1fr; } }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .stat-card .label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat-card .value { font-size: 1.65rem; font-weight: 700; margin-top: 0.35rem; }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 1.5rem 0 0.75rem;
+    }
+    .section-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+    .last-updated { font-size: 0.8rem; color: var(--muted); }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      min-height: 120px;
+    }
+    @media (max-width: 1100px) { .agent-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .agent-grid { grid-template-columns: 1fr; } }
+
+    .agent-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      transition: border-color 0.35s, box-shadow 0.35s, transform 0.2s;
+    }
+    .agent-card.load-high {
+      border-color: rgba(255, 92, 92, 0.55);
+      box-shadow: 0 0 20px rgba(255, 92, 92, 0.12);
+    }
+    .agent-card .row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+    }
+    .agent-card .name { font-weight: 600; font-size: 0.95rem; }
+    .agent-card .id { font-size: 0.75rem; color: var(--muted); }
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 0.28rem 0.5rem;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: background 0.3s, color 0.3s;
+    }
+    .badge-oncall { background: rgba(77, 163, 255, 0.2); color: var(--blue); }
+    .badge-available { background: rgba(62, 207, 142, 0.18); color: var(--green); }
+    .badge-high {
+      background: rgba(255, 92, 92, 0.2);
+      color: var(--red);
+      animation: badge-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes badge-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+    .badge-recovery { background: rgba(255, 159, 67, 0.22); color: var(--orange); }
+    .badge-offline { background: rgba(139, 150, 171, 0.2); color: var(--muted); }
+
+    .meta-line { font-size: 0.8rem; color: var(--muted); margin: 0.2rem 0; }
+    .load-meter {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.35rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+    .load-low { color: var(--green); background: rgba(62, 207, 142, 0.12); }
+    .load-mod { color: var(--orange); background: rgba(255, 159, 67, 0.12); }
+    .load-high { color: var(--red); background: rgba(255, 92, 92, 0.12); }
+
+    .qa-bar {
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 0.5rem 0 0.15rem;
+      overflow: hidden;
+    }
+    .qa-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #9b93ff);
+      border-radius: 4px;
+      transition: width 0.45s ease;
+    }
+
+    .streak-line { font-size: 0.85rem; margin-top: 0.35rem; }
+    .icons-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem; font-size: 1rem; }
+
+    .empty-agents {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .alert-feed {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .alert-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 140px;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      align-items: center;
+      animation: slide-in 0.35s ease;
+    }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .alert-row:last-child { border-bottom: none; }
+    .alert-type { font-weight: 600; }
+    .alert-msg { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .at-high, .at-qa { color: var(--red); }
+    .at-hostile { color: var(--orange); }
+    .at-checkin { color: #e8c547; }
+    .at-shield { color: #a78bfa; }
+    .at-streak { color: var(--green); }
+
+    .history-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    table.history {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      background: var(--card);
+    }
+    table.history th, table.history td {
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    table.history th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .qa-good { color: var(--green); font-weight: 600; }
+    .qa-mid { color: #e8c547; font-weight: 600; }
+    .qa-bad { color: var(--red); font-weight: 600; }
+    .churn-low { color: var(--green); }
+    .churn-med { color: #e8c547; }
+    .churn-high { color: var(--red); }
+
+    .nudge-btn {
+      background: #6c63ff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 8px;
+      width: 100%;
+    }
+    .quick-nudge {
+      background: #1a2535;
+      color: white;
+      border: 1px solid #6c63ff;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      text-align: center;
+    }
+    .quick-nudge:hover { background: #6c63ff; }
+  </style>
+</head>
+<body>
+  <div id="lock-screen" class="active">
+    <div class="logo-lock" aria-hidden="true"></div>
+    <div class="lock-form">
+      <input type="password" id="lock-input" autocomplete="off" placeholder="Supervisor access key" />
+      <button type="button" id="lock-submit">Submit</button>
+      <div id="lock-denied"></div>
+    </div>
+  </div>
+
+  <div id="dashboard">
+    <header class="topbar">
+      <div class="logo-top" aria-hidden="true"></div>
+      <div class="topbar-title">Live Floor View</div>
+      <div class="topbar-right">
+        <span class="live-pill"><span class="live-dot"></span> LIVE</span>
+        <span id="clock"></span>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat-card"><div class="label">Total agents active</div><div class="value" id="st-active">0</div></div>
+      <div class="stat-card"><div class="label">Agents on call</div><div class="value" id="st-oncall">0</div></div>
+      <div class="stat-card"><div class="label">High load alerts</div><div class="value" id="st-high">0</div></div>
+      <div class="stat-card"><div class="label">Avg QA score today</div><div class="value" id="st-qa">—</div></div>
+    </div>
+
+    <div class="section-head">
+      <h2>Agent grid</h2>
+      <span class="last-updated" id="last-updated">Last updated —</span>
+    </div>
+    <div class="agent-grid" id="agent-grid"></div>
+
+    <div class="section-head"><h2>Alert feed</h2></div>
+    <div class="alert-feed" id="alert-feed"></div>
+
+    <div class="section-head"><h2>Call history</h2></div>
+    <div class="history-wrap">
+      <table class="history">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Time</th>
+            <th>Duration</th>
+            <th>QA score</th>
+            <th>Rep score</th>
+            <th>Churn risk</th>
+            <th>Outcome</th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const SUPERVISOR_KEY = 'echopulse-supervisor-2026';
+      const STORAGE_KEY = 'echopulse_supervisor_session';
+      const params = new URLSearchParams(location.search);
+      const API_BASE = (params.get('api') || 'https://echopulse-backend.onrender.com').replace(/\/$/, '');
+      window.ECHOASSIST_SUPERVISOR_API_BASE = API_BASE;
+
+      const LOGO_SVG = '<svg width="140" height="36" viewBox="0 0 140 36" xmlns="http://www.w3.org/2000/svg" aria-label="EchoAssist"><text x="0" y="26" font-family="Inter,system-ui,sans-serif" font-size="22" font-weight="700" fill="#f4f6fb">Echo</text><text x="62" y="26" font-family="Inter,system-ui,sans-serif" font-size="22" font-weight="700" fill="#6c63ff">Assist</text></svg>';
+
+      document.querySelector('.logo-lock').innerHTML = LOGO_SVG;
+      document.querySelector('.logo-top').innerHTML = LOGO_SVG;
+
+      const lockScreen = document.getElementById('lock-screen');
+      const dashboard = document.getElementById('dashboard');
+      const lockInput = document.getElementById('lock-input');
+      const lockSubmit = document.getElementById('lock-submit');
+      const lockDenied = document.getElementById('lock-denied');
+      const agentGrid = document.getElementById('agent-grid');
+      const alertFeed = document.getElementById('alert-feed');
+      const historyBody = document.getElementById('history-body');
+      const clockEl = document.getElementById('clock');
+      const lastUpdatedEl = document.getElementById('last-updated');
+
+      const agentEls = new Map();
+      const historyEls = new Map();
+      let knownAlertKeys = new Set();
+      let alertsBootstrapped = false;
+      let secTicker = 0;
+
+      function urlKeyAuth() {
+        const k = params.get('key');
+        if (k === SUPERVISOR_KEY) {
+          sessionStorage.setItem(STORAGE_KEY, k);
+          try {
+            const u = new URL(location.href);
+            u.searchParams.delete('key');
+            history.replaceState({}, '', u.pathname + u.search);
+          } catch (_) {}
+        }
+      }
+
+      function isAuthed() {
+        return sessionStorage.getItem(STORAGE_KEY) === SUPERVISOR_KEY;
+      }
+
+      function showDashboard() {
+        lockScreen.classList.remove('active');
+        dashboard.classList.add('active');
+        startPolling();
+      }
+
+      function showLock() {
+        dashboard.classList.remove('active');
+        lockScreen.classList.add('active');
+      }
+
+      urlKeyAuth();
+
+      lockSubmit.addEventListener('click', function () {
+        lockDenied.textContent = '';
+        if (lockInput.value === SUPERVISOR_KEY) {
+          sessionStorage.setItem(STORAGE_KEY, lockInput.value);
+          lockInput.value = '';
+          showDashboard();
+        } else {
+          lockDenied.textContent = 'Access Denied';
+          lockInput.value = '';
+        }
+      });
+
+      if (isAuthed()) {
+        lockScreen.classList.remove('active');
+        dashboard.classList.add('active');
+        startPolling();
+      }
+
+      setInterval(function () {
+        clockEl.textContent = new Date().toLocaleString();
+      }, 1000);
+      clockEl.textContent = new Date().toLocaleString();
+
+      setInterval(function () {
+        if (!isAuthed() || !dashboard.classList.contains('active')) return;
+        secTicker += 1;
+        lastUpdatedEl.textContent = 'Last updated ' + secTicker + 's ago';
+        document.querySelectorAll('[data-call-start]').forEach(function (el) {
+          const t0 = el.getAttribute('data-call-start');
+          if (!t0) return;
+          const sec = Math.max(0, Math.floor((Date.now() - new Date(t0).getTime()) / 1000));
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          var dur = el.querySelector('.js-duration');
+          if (dur) dur.textContent = m + ':' + String(s).padStart(2, '0');
+        });
+      }, 1000);
+
+      function badgeClass(badge) {
+        if (badge === 'ON CALL') return 'badge badge-oncall';
+        if (badge === 'AVAILABLE') return 'badge badge-available';
+        if (badge === 'HIGH LOAD') return 'badge badge-high';
+        if (badge === 'RECOVERY MODE') return 'badge badge-recovery';
+        return 'badge badge-offline';
+      }
+
+      function loadMeterClass(lvl) {
+        var u = (lvl || 'LOW').toUpperCase();
+        if (u === 'HIGH') return 'load-meter load-high';
+        if (u === 'MODERATE') return 'load-meter load-mod';
+        return 'load-meter load-low';
+      }
+
+      function formatDur(sec) {
+        sec = Number(sec) || 0;
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        return m + ':' + String(s).padStart(2, '0');
+      }
+
+      function formatTime(iso) {
+        if (!iso) return '—';
+        try {
+          return new Date(iso).toLocaleString();
+        } catch (_) {
+          return '—';
+        }
+      }
+
+      function qaCellClass(score) {
+        var n = Number(score);
+        if (n > 80) return 'qa-good';
+        if (n >= 50) return 'qa-mid';
+        return 'qa-bad';
+      }
+
+      function churnClass(r) {
+        var x = (r || 'low').toLowerCase();
+        if (x === 'high') return 'churn-high';
+        if (x === 'medium') return 'churn-med';
+        return 'churn-low';
+      }
+
+      function flagIcons(flags) {
+        if (!flags || !flags.length) return '';
+        var out = '';
+        flags.forEach(function (f) {
+          var fl = String(f).toLowerCase();
+          if (fl.indexOf('echoshield') !== -1 || fl.indexOf('echo') !== -1) out += '🛡️';
+          if (fl.indexOf('hostile') !== -1) out += '⚠️';
+          if (fl.indexOf('streak') !== -1 || fl.indexOf('clean') !== -1) out += '🔥';
+        });
+        return out || '—';
+      }
+
+      function alertTypeClass(t) {
+        var s = String(t || '').toUpperCase();
+        if (s.indexOf('HIGH LOAD') !== -1 || s.indexOf('QA SCORE') !== -1) return 'at-high';
+        if (s.indexOf('HOSTILE') !== -1) return 'at-hostile';
+        if (s.indexOf('CHECK-IN') !== -1) return 'at-checkin';
+        if (s.indexOf('ECHOSHIELD') !== -1 || s.indexOf('ECHO SHIELD') !== -1) return 'at-shield';
+        if (s.indexOf('STREAK') !== -1) return 'at-streak';
+        return '';
+      }
+
+      function upsertAgentCard(a) {
+        var id = a.agentId;
+        var el = agentEls.get(id);
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'agent-card';
+          el.dataset.agentId = id;
+          el.innerHTML =
+            '<div class="row-top"><div><div class="name js-name"></div><div class="id js-id"></div></div><span class="js-badge"></span></div>' +
+            '<div class="meta-line js-duration-wrap" style="display:none">On call · <span class="js-duration">0:00</span></div>' +
+            '<div><span class="js-load"></span></div>' +
+            '<div class="meta-line">Live QA</div><div class="qa-bar"><i class="js-qa-fill"></i></div><div class="meta-line js-qa-label"></div>' +
+            '<div class="streak-line js-streak" style="display:none"></div>' +
+            '<div class="icons-row"><span class="js-burnout" style="display:none" title="High load 3+ times this hour">⚠️</span><span class="js-shield" style="display:none">🛡️</span></div>' +
+            '<button type="button" class="nudge-btn js-nudge-btn">📣 Send Nudge</button>';
+          agentGrid.appendChild(el);
+          agentEls.set(id, el);
+        }
+
+        el.classList.toggle('load-high', (a.agentLoadLevel || '').toUpperCase() === 'HIGH');
+        el.querySelector('.js-name').textContent = a.agentName || id;
+        el.querySelector('.js-id').textContent = 'ID: ' + id;
+
+        var badge = el.querySelector('.js-badge');
+        badge.className = badgeClass(a.statusBadge);
+        badge.textContent = a.statusBadge;
+
+        var durWrap = el.querySelector('.js-duration-wrap');
+        if (a.statusBadge === 'ON CALL' && a.callStartedAt) {
+          durWrap.style.display = 'block';
+          el.setAttribute('data-call-start', a.callStartedAt);
+        } else if (a.statusBadge === 'ON CALL' && a.lastSeen) {
+          durWrap.style.display = 'block';
+          el.setAttribute('data-call-start', new Date(Date.now() - (a.callDurationSeconds || 0) * 1000).toISOString());
+        } else {
+          durWrap.style.display = 'none';
+          el.removeAttribute('data-call-start');
+        }
+
+        var loadEl = el.querySelector('.js-load');
+        loadEl.className = loadMeterClass(a.agentLoadLevel);
+        loadEl.textContent = 'Load: ' + (a.agentLoadLevel || 'LOW');
+
+        var qa = Math.max(0, Math.min(100, Number(a.qaScore) || 0));
+        el.querySelector('.js-qa-fill').style.width = qa + '%';
+        el.querySelector('.js-qa-label').textContent = qa + '/100';
+
+        var streak = el.querySelector('.js-streak');
+        if ((a.callStreak || 0) > 2) {
+          streak.style.display = 'block';
+          streak.textContent = '🔥 ' + a.callStreak + ' clean streak';
+        } else {
+          streak.style.display = 'none';
+        }
+
+        el.querySelector('.js-burnout').style.display = a.burnoutWarning ? 'inline' : 'none';
+        el.querySelector('.js-shield').style.display = a.echoShieldActive ? 'inline' : 'none';
+
+        var nudgeBtn = el.querySelector('.js-nudge-btn');
+        if (nudgeBtn) {
+          var dispName = a.agentName || id;
+          nudgeBtn.setAttribute(
+            'onclick',
+            'openNudgePanel(' + JSON.stringify(id) + ', ' + JSON.stringify(dispName) + ')'
+          );
+        }
+      }
+
+      function pruneAgentCards(activeIds) {
+        agentEls.forEach(function (el, id) {
+          if (!activeIds.has(id)) {
+            el.remove();
+            agentEls.delete(id);
+          }
+        });
+      }
+
+      function renderAlerts(list) {
+        var ordered = (list || []).slice(0, 50);
+        var newKeys = new Set();
+        ordered.forEach(function (a) {
+          newKeys.add((a.id || '') + '|' + (a.created_at || '') + '|' + (a.message || ''));
+        });
+        if (!alertsBootstrapped) {
+          alertFeed.innerHTML = '';
+          ordered
+            .slice()
+            .reverse()
+            .forEach(function (a) {
+              appendAlertRow(a, false);
+            });
+          knownAlertKeys = newKeys;
+          alertsBootstrapped = true;
+          return;
+        }
+        var toPrepend = [];
+        for (var i = 0; i < ordered.length; i++) {
+          var a = ordered[i];
+          var key = (a.id || '') + '|' + (a.created_at || '') + '|' + (a.message || '');
+          if (!knownAlertKeys.has(key)) toPrepend.push(a);
+        }
+        knownAlertKeys = newKeys;
+        toPrepend.reverse().forEach(function (a) {
+          appendAlertRow(a, true);
+        });
+        while (alertFeed.children.length > 50) {
+          alertFeed.removeChild(alertFeed.lastChild);
+        }
+      }
+
+      function appendAlertRow(a, animate) {
+        var row = document.createElement('div');
+        row.className = 'alert-row' + (animate ? '' : '');
+        if (animate) row.style.animation = 'slide-in 0.35s ease';
+        var typeExtra = alertTypeClass(a.alert_type);
+        row.innerHTML =
+          '<span>' +
+          formatTime(a.created_at) +
+          '</span><span class="alert-msg">' +
+          escapeHtml(a.agent_name || a.rep_id) +
+          ' — ' +
+          escapeHtml(a.message || '') +
+          '</span><span class="alert-type ' +
+          typeExtra +
+          '">' +
+          escapeHtml(a.alert_type || '') +
+          '</span>';
+        alertFeed.insertBefore(row, alertFeed.firstChild);
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function upsertHistoryRow(row) {
+        var id = row.id || row.created_at + '|' + (row.agent_id || '');
+        if (!id) return;
+        var tr = historyEls.get(id);
+        if (!tr) {
+          tr = document.createElement('tr');
+          tr.dataset.rowId = id;
+          historyBody.appendChild(tr);
+          historyEls.set(id, tr);
+        }
+        var agent = escapeHtml(row.agent_name || row.agent_id || '—');
+        var qa = Number(row.qa_score);
+        var rep = Number(row.rep_score);
+        tr.innerHTML =
+          '<td>' +
+          agent +
+          '</td><td>' +
+          formatTime(row.created_at) +
+          '</td><td>' +
+          formatDur(row.duration_seconds) +
+          '</td><td class="' +
+          qaCellClass(qa) +
+          '">' +
+          (Number.isFinite(qa) ? qa : '—') +
+          '</td><td>' +
+          (Number.isFinite(rep) ? rep : '—') +
+          '</td><td class="' +
+          churnClass(row.churn_risk) +
+          '">' +
+          escapeHtml(row.churn_risk || '—') +
+          '</td><td>' +
+          escapeHtml((row.outcome || '').slice(0, 80)) +
+          '</td><td>' +
+          flagIcons(row.flags) +
+          '</td>';
+      }
+
+      function pruneHistoryRows(ids) {
+        historyEls.forEach(function (tr, id) {
+          if (!ids.has(id)) {
+            tr.remove();
+            historyEls.delete(id);
+          }
+        });
+      }
+
+      var pollTimer = null;
+      function startPolling() {
+        if (pollTimer) return;
+        void poll();
+        pollTimer = setInterval(poll, 5000);
+      }
+
+      async function poll() {
+        if (!isAuthed()) return;
+        try {
+          var r = await fetch(API_BASE + '/supervisor-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ supervisorKey: sessionStorage.getItem(STORAGE_KEY) })
+          });
+          if (r.status === 401) {
+            sessionStorage.removeItem(STORAGE_KEY);
+            showLock();
+            return;
+          }
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          var data = await r.json();
+          secTicker = 0;
+          lastUpdatedEl.textContent = 'Last updated just now';
+
+          var fs = data.floorStats || {};
+          document.getElementById('st-active').textContent = fs.totalActive != null ? fs.totalActive : '0';
+          document.getElementById('st-oncall').textContent = fs.onCall != null ? fs.onCall : '0';
+          document.getElementById('st-high').textContent = fs.highLoadCount != null ? fs.highLoadCount : '0';
+          document.getElementById('st-qa').textContent = fs.avgQAScore != null ? fs.avgQAScore : '—';
+
+          var agents = data.agents || [];
+          var online = agents.filter(function (a) {
+            return a.statusBadge !== 'OFFLINE';
+          });
+          agentGrid.querySelectorAll('.empty-agents').forEach(function (n) {
+            n.remove();
+          });
+          if (online.length === 0) {
+            if (!agentGrid.querySelector('.empty-agents')) {
+              var empty = document.createElement('div');
+              empty.className = 'empty-agents';
+              empty.textContent = 'No agents currently active';
+              agentGrid.appendChild(empty);
+            }
+          }
+          var activeIds = new Set();
+          online.forEach(function (a) {
+            activeIds.add(a.agentId);
+            upsertAgentCard(a);
+          });
+          pruneAgentCards(activeIds);
+
+          renderAlerts(data.alerts || []);
+
+          var hist = data.callHistory || [];
+          var hid = new Set();
+          hist.forEach(function (row) {
+            var id = row.id || row.created_at + '|' + (row.agent_id || '');
+            if (!id) return;
+            hid.add(id);
+            upsertHistoryRow(row);
+          });
+          pruneHistoryRows(hid);
+        } catch (e) {
+          console.error(e);
+          lastUpdatedEl.textContent = 'Last update failed — retrying';
+        }
+      }
+    })();
+  </script>
+
+  <div id="nudgePanel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1e2a3a; border:1px solid #6c63ff; border-radius:12px; padding:24px; width:320px; z-index:1000; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <h3 style="color:white; margin:0 0 16px 0;">📣 Send Nudge to <span id="nudgeAgentName"></span></h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;">
+      <button type="button" class="quick-nudge" onclick="sendQuickNudge('Read the closing disclosure now')">📋 Read disclosure</button>
+      <button type="button" class="quick-nudge" onclick="sendQuickNudge('De-escalate — caller is frustrated')">🧘 De-escalate</button>
+      <button type="button" class="quick-nudge" onclick="sendQuickNudge('Stop repeating verification questions')">⚠️ Stop repeating</button>
+      <button type="button" class="quick-nudge" onclick="sendQuickNudge('Great job — keep it up!')">🔥 Great job!</button>
+    </div>
+    <input id="customNudge" type="text" placeholder="Type custom message..." style="width:100%; padding:10px; background:#0f1623; border:1px solid #6c63ff; border-radius:8px; color:white; margin-bottom:12px; box-sizing:border-box;">
+    <div style="display:flex; gap:8px;">
+      <button type="button" onclick="sendCustomNudge()" style="flex:1; background:#6c63ff; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">Send</button>
+      <button type="button" onclick="closeNudgePanel()" style="flex:1; background:#333; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">Cancel</button>
+    </div>
+    <p id="nudgeConfirm" style="color:#00ff88; text-align:center; margin:8px 0 0 0; display:none;">✓ Nudge sent!</p>
+  </div>
+  <div id="nudgeOverlay" onclick="closeNudgePanel()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;"></div>
+
+  <script>
+    let currentNudgeAgentId = null;
+    var SUPERVISOR_SESSION_KEY = 'echopulse_supervisor_session';
+    var SUPERVISOR_KEY_VALUE = 'echopulse-supervisor-2026';
+
+    function openNudgePanel(agentId, agentName) {
+      if (sessionStorage.getItem(SUPERVISOR_SESSION_KEY) !== SUPERVISOR_KEY_VALUE) return;
+      currentNudgeAgentId = agentId;
+      document.getElementById('nudgeAgentName').textContent = agentName;
+      document.getElementById('nudgePanel').style.display = 'block';
+      document.getElementById('nudgeOverlay').style.display = 'block';
+      document.getElementById('nudgeConfirm').style.display = 'none';
+      document.getElementById('customNudge').value = '';
+    }
+
+    function closeNudgePanel() {
+      document.getElementById('nudgePanel').style.display = 'none';
+      document.getElementById('nudgeOverlay').style.display = 'none';
+      document.getElementById('nudgeConfirm').style.display = 'none';
+      currentNudgeAgentId = null;
+    }
+
+    async function sendQuickNudge(message) {
+      await sendNudge(message);
+    }
+
+    async function sendCustomNudge() {
+      var message = document.getElementById('customNudge').value.trim();
+      if (!message) return;
+      await sendNudge(message);
+    }
+
+    async function sendNudge(message) {
+      if (!currentNudgeAgentId) return;
+      try {
+        var base = window.ECHOASSIST_SUPERVISOR_API_BASE || 'https://echopulse-backend.onrender.com';
+        var res = await fetch(base + '/echoassist-nudge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supervisorKey: 'echopulse-supervisor-2026',
+            agentId: currentNudgeAgentId,
+            message: message
+          })
+        });
+        var j = await res.json().catch(function () {
+          return {};
+        });
+        if (!res.ok || j.success === false) throw new Error(j.error || 'Failed');
+        document.getElementById('nudgeConfirm').style.display = 'block';
+        setTimeout(function () {
+          closeNudgePanel();
+        }, 2000);
+      } catch (e) {
+        alert('Could not send nudge: ' + (e.message || String(e)));
+      }
+    }
+  </script>
+</body>
+</html>

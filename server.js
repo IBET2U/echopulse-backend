@@ -363,7 +363,7 @@ app.post('/echoassist', async (req, res) => {
     if (!transcript) return res.status(400).json({ error: 'No transcript provided' });
 
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 512,
       messages: [{
         role: 'user',
